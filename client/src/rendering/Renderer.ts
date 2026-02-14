@@ -67,16 +67,25 @@ export class Renderer {
     // Bullets
     this.bulletRenderer.render(ctx, state.bullets, camera, cellPx)
 
-    // Tanks
-    this.tankRenderer.render(ctx, state.tanks, camera, cellPx, playerId)
+    // Tanks — use predicted position for my tank
+    const displayTanks = state.tanks.map(t => {
+      if (t.id === playerId) {
+        const pos = client.getMyDisplayPosition()
+        const dir = client.getMyDisplayDirection()
+        return pos ? { ...t, position: pos, direction: dir } : t
+      }
+      return t
+    })
+    this.tankRenderer.render(ctx, displayTanks, camera, cellPx, playerId)
 
     // Explosions
     this.effects.renderExplosions(ctx, camera, cellPx)
 
     // My tank indicator + portal arrow
     const myTank = client.getMyTank()
-    if (myTank) {
-      const { sx, sy } = camera.worldToScreen(myTank.position.x, myTank.position.y, cellPx)
+    const myPos = client.getMyDisplayPosition()
+    if (myTank && myPos) {
+      const { sx, sy } = camera.worldToScreen(myPos.x, myPos.y, cellPx)
       const cx = sx + cellPx / 2
 
       ctx.fillStyle = '#FFF'
@@ -91,12 +100,12 @@ export class Renderer {
         let nearest = state.portals[0]
         let minDist = Infinity
         for (const p of state.portals) {
-          const dx = p.position.x - myTank.position.x
-          const dy = p.position.y - myTank.position.y
+          const dx = p.position.x - myPos.x
+          const dy = p.position.y - myPos.y
           const d = dx * dx + dy * dy
           if (d < minDist) { minDist = d; nearest = p }
         }
-        this.effects.renderPortalArrow(ctx, myTank.position, nearest.position, this.canvas.width)
+        this.effects.renderPortalArrow(ctx, myPos, nearest.position, this.canvas.width)
       }
     }
 

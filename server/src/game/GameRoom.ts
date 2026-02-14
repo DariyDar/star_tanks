@@ -114,7 +114,7 @@ export class GameRoom {
       if (tank.isBot) continue
       const input = this.playerManager.consumeInput(tank.id)
       if (input) {
-        this.physics.moveTank(tank, input.moveDirection)
+        this.physics.moveTank(tank, input.moveDirection, this.playerManager.getAllTanks())
         if (input.aimDirection) {
           tank.direction = input.aimDirection
         }
@@ -122,8 +122,9 @@ export class GameRoom {
     }
 
     // 1b. Bot AI movement
+    const allTanks = this.playerManager.getAllTanks()
     const botMoves = this.botController.update(
-      this.playerManager.getAllTanks(),
+      allTanks,
       this.starManager.getStars(),
       this.powerUpManager.getPowerUps(),
       this.portalManager.getPortals(),
@@ -133,7 +134,7 @@ export class GameRoom {
     for (const [botId, dir] of botMoves) {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
-        this.physics.moveTank(bot, dir)
+        this.physics.moveTank(bot, dir, allTanks)
       }
     }
 

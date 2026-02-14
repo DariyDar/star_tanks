@@ -16,7 +16,7 @@ export class PhysicsEngine {
     private readonly mapHeight: number
   ) {}
 
-  moveTank(tank: Tank, moveDirection: Direction | null): void {
+  moveTank(tank: Tank, moveDirection: Direction | null, allTanks: Tank[]): void {
     if (!tank.isAlive || !moveDirection) return
 
     tank.direction = moveDirection
@@ -34,19 +34,37 @@ export class PhysicsEngine {
     const clampedTargetX = clamp(targetCellX, 0, this.mapWidth - 1)
     const clampedTargetY = clamp(targetCellY, 0, this.mapHeight - 1)
 
-    if (this.canMoveTo(clampedTargetX, clampedTargetY)) {
-      // Move smoothly — keep float position
-      tank.position = {
-        x: clamp(newX, 0, this.mapWidth - 1),
-        y: clamp(newY, 0, this.mapHeight - 1)
-      }
-    } else {
-      // Can't move to target cell — snap to the nearest integer boundary
+    if (!this.canMoveTo(clampedTargetX, clampedTargetY)) {
+      // Obstacle collision — snap to boundary
       tank.position = {
         x: Math.round(tank.position.x),
         y: Math.round(tank.position.y)
       }
+      return
     }
+
+    // Check tank-to-tank collision
+    const proposedX = clamp(newX, 0, this.mapWidth - 1)
+    const proposedY = clamp(newY, 0, this.mapHeight - 1)
+
+    if (this.collidesWithTank(proposedX, proposedY, tank.id, allTanks)) {
+      // Stop — don't move into another tank
+      return
+    }
+
+    tank.position = { x: proposedX, y: proposedY }
+  }
+
+  private collidesWithTank(x: number, y: number, selfId: string, allTanks: Tank[]): boolean {
+    const myCell = { x: Math.round(x), y: Math.round(y) }
+    for (const other of allTanks) {
+      if (other.id === selfId || !other.isAlive) continue
+      const otherCell = { x: Math.round(other.position.x), y: Math.round(other.position.y) }
+      if (myCell.x === otherCell.x && myCell.y === otherCell.y) {
+        return true
+      }
+    }
+    return false
   }
 
   private canMoveTo(x: number, y: number): boolean {

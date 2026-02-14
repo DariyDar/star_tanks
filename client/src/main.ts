@@ -21,6 +21,9 @@ let joined = false
 let lastPlayerName = 'Player'
 let lastMapId = 'lakes'
 let lastLeaderboard: import('@shared/types.js').LeaderboardEntry[] = []
+let lastFrameTime = performance.now()
+let inputSendTimer = 0
+const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 
 function joinGame(name: string, mapId: string) {
   lastPlayerName = name
@@ -110,20 +113,30 @@ setInterval(() => {
 }, 5000)
 
 // Game loop
-function gameLoop() {
+function gameLoop(now: number) {
+  const dt = Math.min((now - lastFrameTime) / 1000, 0.1) // cap at 100ms
+  lastFrameTime = now
+
   if (joined && !resultScreen.isVisible && !lobby.isVisible) {
-    // Send input
     const moveDir = input.getMoveDirection()
     const aimDir = input.getAimDirection()
 
-    socket.sendInput({
-      tick: client.state?.tick ?? 0,
-      sequenceNumber: sequenceNumber++,
-      moveDirection: moveDir,
-      aimDirection: aimDir
-    })
+    // Apply input locally for instant response
+    client.applyLocalInput(moveDir, dt)
 
-    // Get interpolated state
+    // Send input to server at fixed rate
+    inputSendTimer += dt * 1000
+    if (inputSendTimer >= INPUT_SEND_INTERVAL) {
+      inputSendTimer -= INPUT_SEND_INTERVAL
+      socket.sendInput({
+        tick: client.state?.tick ?? 0,
+        sequenceNumber: sequenceNumber++,
+        moveDirection: moveDir,
+        aimDirection: aimDir
+      })
+    }
+
+    // Get interpolated state from server
     const state = stateBuffer.getInterpolatedState()
     if (state) {
       client.updateState(state)

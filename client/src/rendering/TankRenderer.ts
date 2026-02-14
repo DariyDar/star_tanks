@@ -1,8 +1,17 @@
 import { Direction, type Tank } from '@shared/types.js'
 import type { Camera } from '../game/Camera.js'
 
+const ROTATION_SPEED = 12 // radians per second
+
 export class TankRenderer {
+  private visualAngles = new Map<string, number>()
+  private lastTime = performance.now()
+
   render(ctx: CanvasRenderingContext2D, tanks: Tank[], camera: Camera, cellPx: number, myId: string): void {
+    const now = performance.now()
+    const dt = Math.min((now - this.lastTime) / 1000, 0.1)
+    this.lastTime = now
+
     for (const tank of tanks) {
       if (!tank.isAlive) continue
       if (!camera.isVisible(tank.position.x, tank.position.y)) continue
@@ -11,9 +20,25 @@ export class TankRenderer {
       const cx = sx + cellPx / 2
       const cy = sy + cellPx / 2
 
+      // Smooth rotation
+      const targetAngle = directionToAngle(tank.direction)
+      let currentAngle = this.visualAngles.get(tank.id) ?? targetAngle
+
+      // Shortest path rotation
+      let diff = targetAngle - currentAngle
+      while (diff > Math.PI) diff -= Math.PI * 2
+      while (diff < -Math.PI) diff += Math.PI * 2
+
+      if (Math.abs(diff) < 0.01) {
+        currentAngle = targetAngle
+      } else {
+        currentAngle += Math.sign(diff) * Math.min(Math.abs(diff), ROTATION_SPEED * dt)
+      }
+      this.visualAngles.set(tank.id, currentAngle)
+
       ctx.save()
       ctx.translate(cx, cy)
-      ctx.rotate(directionToAngle(tank.direction))
+      ctx.rotate(currentAngle)
 
       const s = cellPx * 0.45
 
