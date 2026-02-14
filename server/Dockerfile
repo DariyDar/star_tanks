@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY shared/package.json shared/
 COPY server/package.json server/
-RUN npm install --workspace=shared --workspace=server
+COPY client/package.json client/
+RUN npm install
 
 COPY tsconfig.base.json ./
 COPY shared/ shared/
