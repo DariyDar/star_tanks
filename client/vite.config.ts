@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import path from 'path'
 
 export default defineConfig({
-  base: '/tank-battle-royale/',
+  base: '/star_tanks/',
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, '../shared/src')
