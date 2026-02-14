@@ -1,5 +1,5 @@
-import type { Star, Tank, Vec2 } from '../../../shared/src/types.js'
-import { STAR_RESPAWN_TIME } from '../../../shared/src/constants.js'
+import type { Star, Tank, Vec2 } from '@tank-br/shared/types.js'
+import { STAR_RESPAWN_TIME } from '@tank-br/shared/constants.js'
 
 let starIdCounter = 0
 

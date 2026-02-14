@@ -1,7 +1,7 @@
-import type { Tank, Star, PowerUp, Portal, Zone, Vec2 } from '../../../shared/src/types.js'
-import { Direction } from '../../../shared/src/types.js'
-import { distance, vecToDirection } from '../../../shared/src/math.js'
-import { SpatialGrid } from '../../../shared/src/collision.js'
+import type { Tank, Star, PowerUp, Portal, Zone, Vec2 } from '@tank-br/shared/types.js'
+import { Direction } from '@tank-br/shared/types.js'
+import { distance, vecToDirection } from '@tank-br/shared/math.js'
+import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { findPath } from './Pathfinding.js'
 
 type BotState = 'patrol' | 'chase' | 'collect' | 'fleeZone'

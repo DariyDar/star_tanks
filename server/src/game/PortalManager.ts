@@ -1,7 +1,7 @@
-import type { Portal, Tank, Vec2 } from '../../../shared/src/types.js'
-import { PORTAL_SPAWN_INTERVAL, PORTAL_LIFETIME } from '../../../shared/src/constants.js'
-import { rngInt, createRng } from '../../../shared/src/math.js'
-import { SpatialGrid, isBlockingMovement } from '../../../shared/src/collision.js'
+import type { Portal, Tank, Vec2 } from '@tank-br/shared/types.js'
+import { PORTAL_SPAWN_INTERVAL, PORTAL_LIFETIME } from '@tank-br/shared/constants.js'
+import { rngInt, createRng } from '@tank-br/shared/math.js'
+import { SpatialGrid, isBlockingMovement } from '@tank-br/shared/collision.js'
 
 let portalIdCounter = 0
 

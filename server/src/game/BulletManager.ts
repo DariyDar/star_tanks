@@ -1,16 +1,16 @@
 import {
   type Bullet, type Tank, Direction, ObstacleType, PowerUpType
-} from '../../../shared/src/types.js'
+} from '@tank-br/shared/types.js'
 import {
   directionToVec
-} from '../../../shared/src/math.js'
+} from '@tank-br/shared/math.js'
 import {
   SpatialGrid, isBlockingBullet, isDestructible
-} from '../../../shared/src/collision.js'
+} from '@tank-br/shared/collision.js'
 import {
   BULLET_SPEED, BULLET_RANGE, FIRE_COOLDOWN, FIRE_COOLDOWN_RAPID,
   TICK_MS
-} from '../../../shared/src/constants.js'
+} from '@tank-br/shared/constants.js'
 
 export interface BulletHit {
   bullet: Bullet

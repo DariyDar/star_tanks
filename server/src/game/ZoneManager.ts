@@ -1,9 +1,9 @@
-import type { Zone, Tank } from '../../../shared/src/types.js'
+import type { Zone, Tank } from '@tank-br/shared/types.js'
 import {
   ZONE_SHRINK_START, ZONE_SHRINK_PHASES, ZONE_DAMAGE_PER_SECOND,
   ZONE_PAUSE_BETWEEN, TICK_MS
-} from '../../../shared/src/constants.js'
-import { distance } from '../../../shared/src/math.js'
+} from '@tank-br/shared/constants.js'
+import { distance } from '@tank-br/shared/math.js'
 
 export class ZoneManager {
   private zone: Zone

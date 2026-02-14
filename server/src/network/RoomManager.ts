@@ -1,5 +1,5 @@
-import { type MapId, type RoomInfo, GamePhase } from '../../../shared/src/types.js'
-import { MAX_PLAYERS } from '../../../shared/src/constants.js'
+import { type MapId, type RoomInfo, GamePhase } from '@tank-br/shared/types.js'
+import { MAX_PLAYERS } from '@tank-br/shared/constants.js'
 import { GameRoom, type GameRoomEvents } from '../game/GameRoom.js'
 import type { Server } from 'socket.io'
 

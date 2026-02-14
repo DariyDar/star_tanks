@@ -1,5 +1,5 @@
-import type { Vec2 } from '../../../shared/src/types.js'
-import { SpatialGrid, isWalkableCell } from '../../../shared/src/collision.js'
+import type { Vec2 } from '@tank-br/shared/types.js'
+import { SpatialGrid, isWalkableCell } from '@tank-br/shared/collision.js'
 
 interface PathNode {
   x: number

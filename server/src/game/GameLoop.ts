@@ -1,4 +1,4 @@
-import { TICK_MS } from '../../../shared/src/constants.js'
+import { TICK_MS } from '@tank-br/shared/constants.js'
 
 export class GameLoop {
   private intervalId: ReturnType<typeof setInterval> | null = null

@@ -1,13 +1,13 @@
 import {
   type Tank, type Vec2, Direction, ObstacleType
-} from '../../../shared/src/types.js'
+} from '@tank-br/shared/types.js'
 import {
   directionToVec, clamp
-} from '../../../shared/src/math.js'
+} from '@tank-br/shared/math.js'
 import {
   SpatialGrid, isBlockingMovement
-} from '../../../shared/src/collision.js'
-import { TICK_MS } from '../../../shared/src/constants.js'
+} from '@tank-br/shared/collision.js'
+import { TICK_MS } from '@tank-br/shared/constants.js'
 
 export class PhysicsEngine {
   constructor(

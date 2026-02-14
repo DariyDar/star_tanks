@@ -1,9 +1,9 @@
-import { type PowerUp, type Tank, type Vec2, PowerUpType } from '../../../shared/src/types.js'
+import { type PowerUp, type Tank, type Vec2, PowerUpType } from '@tank-br/shared/types.js'
 import {
   POWERUP_SPAWN_INTERVAL, POWERUP_DURATION, SPEED_MULTIPLIER,
   FIRE_COOLDOWN_RAPID
-} from '../../../shared/src/constants.js'
-import { rngInt, createRng } from '../../../shared/src/math.js'
+} from '@tank-br/shared/constants.js'
+import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 let powerUpIdCounter = 0
 

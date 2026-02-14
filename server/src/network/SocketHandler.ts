@@ -1,10 +1,10 @@
 import type { Server, Socket } from 'socket.io'
 import type {
   ClientJoinPayload, ClientInputPayload, ClientPingPayload
-} from '../../../shared/src/protocol.js'
-import { CLIENT_EVENTS, SERVER_EVENTS } from '../../../shared/src/protocol.js'
-import type { CompressedMapData } from '../../../shared/src/types.js'
-import { ObstacleType } from '../../../shared/src/types.js'
+} from '@tank-br/shared/protocol.js'
+import { CLIENT_EVENTS, SERVER_EVENTS } from '@tank-br/shared/protocol.js'
+import type { CompressedMapData } from '@tank-br/shared/types.js'
+import { ObstacleType } from '@tank-br/shared/types.js'
 import { RoomManager } from './RoomManager.js'
 
 export class SocketHandler {

@@ -2,10 +2,10 @@ import {
   type GameState, type MapDefinition, type PlayerInput,
   type LeaderboardEntry, type MapId,
   GamePhase
-} from '../../../shared/src/types.js'
-import { SpatialGrid } from '../../../shared/src/collision.js'
-import { getMap, MAP_INFO } from '../../../shared/src/maps/index.js'
-import { MAX_PLAYERS } from '../../../shared/src/constants.js'
+} from '@tank-br/shared/types.js'
+import { SpatialGrid } from '@tank-br/shared/collision.js'
+import { getMap, MAP_INFO } from '@tank-br/shared/maps/index.js'
+import { MAX_PLAYERS } from '@tank-br/shared/constants.js'
 import { GameLoop } from './GameLoop.js'
 import { PhysicsEngine } from './PhysicsEngine.js'
 import { BulletManager } from './BulletManager.js'

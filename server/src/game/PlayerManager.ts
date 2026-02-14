@@ -1,9 +1,9 @@
 import {
   type Tank, type Vec2, type PlayerInput, Direction, PowerUpType
-} from '../../../shared/src/types.js'
+} from '@tank-br/shared/types.js'
 import {
   TANK_HP, TANK_SPEED, TANK_COLORS
-} from '../../../shared/src/constants.js'
+} from '@tank-br/shared/constants.js'
 
 export class PlayerManager {
   private tanks = new Map<string, Tank>()
