@@ -1,5 +1,5 @@
 import {
-  type Tank, type Vec2, Direction, ObstacleType
+  type Tank, type Vec2, Direction
 } from '@tank-br/shared/types.js'
 import {
   directionToVec, clamp
@@ -27,11 +27,25 @@ export class PhysicsEngine {
     const newX = tank.position.x + vec.x * cellsPerTick
     const newY = tank.position.y + vec.y * cellsPerTick
 
-    const clampedX = clamp(Math.round(newX), 0, this.mapWidth - 1)
-    const clampedY = clamp(Math.round(newY), 0, this.mapHeight - 1)
+    // Check the target integer cell in the movement direction
+    const targetCellX = vec.x > 0 ? Math.ceil(newX) : vec.x < 0 ? Math.floor(newX) : Math.round(newX)
+    const targetCellY = vec.y > 0 ? Math.ceil(newY) : vec.y < 0 ? Math.floor(newY) : Math.round(newY)
 
-    if (this.canMoveTo(clampedX, clampedY)) {
-      tank.position = { x: clampedX, y: clampedY }
+    const clampedTargetX = clamp(targetCellX, 0, this.mapWidth - 1)
+    const clampedTargetY = clamp(targetCellY, 0, this.mapHeight - 1)
+
+    if (this.canMoveTo(clampedTargetX, clampedTargetY)) {
+      // Move smoothly — keep float position
+      tank.position = {
+        x: clamp(newX, 0, this.mapWidth - 1),
+        y: clamp(newY, 0, this.mapHeight - 1)
+      }
+    } else {
+      // Can't move to target cell — snap to the nearest integer boundary
+      tank.position = {
+        x: Math.round(tank.position.x),
+        y: Math.round(tank.position.y)
+      }
     }
   }
 
@@ -42,6 +56,6 @@ export class PhysicsEngine {
   }
 
   isPositionFree(pos: Vec2): boolean {
-    return this.canMoveTo(pos.x, pos.y)
+    return this.canMoveTo(Math.round(pos.x), Math.round(pos.y))
   }
 }

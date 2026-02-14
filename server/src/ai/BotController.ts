@@ -17,7 +17,7 @@ const RECALC_INTERVAL = 500
 const CHASE_RANGE = 15
 const POWERUP_RANGE = 20
 const STAR_RANGE = 30
-const ZONE_MARGIN = 50
+const ZONE_MARGIN = 10
 
 export class BotController {
   private bots = new Map<string, BotData>()
@@ -149,8 +149,8 @@ export class BotController {
   private patrol(tank: Tank, data: BotData, now: number): Direction | null {
     // Set a random target if no path
     if (data.path.length === 0 || now - data.pathRecalcAt > 3000) {
-      const targetX = Math.floor(Math.random() * (this.mapWidth - 200)) + 100
-      const targetY = Math.floor(Math.random() * (this.mapHeight - 200)) + 100
+      const targetX = Math.floor(Math.random() * (this.mapWidth - 20)) + 10
+      const targetY = Math.floor(Math.random() * (this.mapHeight - 20)) + 10
       data.path = findPath(tank.position, { x: targetX, y: targetY }, this.grid, this.mapWidth, this.mapHeight)
       data.pathRecalcAt = now
     }

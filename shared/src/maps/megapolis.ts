@@ -4,7 +4,6 @@ import { MAP_WIDTH, MAP_HEIGHT, STARS_PER_MAP, BRICK_HP } from '../constants.js'
 
 export function generateMegapolisMap(): MapDefinition {
   const rng = createRng(42_002)
-  // Use a Map for O(1) add/remove by coordinate key
   const obstacleMap = new Map<string, Obstacle>()
 
   function key(x: number, y: number): string { return `${x},${y}` }
@@ -21,8 +20,10 @@ export function generateMegapolisMap(): MapDefinition {
   }
 
   function makeDoor(startX: number, startY: number, w: number, h: number, side: number): void {
-    const pos = rngInt(rng, 3, (side < 2 ? w : h) - 4)
-    for (let d = 0; d < 3; d++) {
+    const dim = side < 2 ? w : h
+    if (dim <= 5) return
+    const pos = rngInt(rng, 1, dim - 3)
+    for (let d = 0; d < 2; d++) {
       if (side === 0) removeObstacle(startX + pos + d, startY)
       else if (side === 1) removeObstacle(startX + pos + d, startY + h - 1)
       else if (side === 2) removeObstacle(startX, startY + pos + d)
@@ -30,26 +31,25 @@ export function generateMegapolisMap(): MapDefinition {
     }
   }
 
-  // City grid with bigger blocks and wider streets for less density
-  const blockSize = 50
-  const streetWidth = 8
+  // City grid — smaller blocks for 200x200
+  const blockSize = 12
+  const streetWidth = 4
 
-  for (let by = 0; by * (blockSize + streetWidth) < MAP_HEIGHT - 100; by++) {
-    for (let bx = 0; bx * (blockSize + streetWidth) < MAP_WIDTH - 100; bx++) {
-      const startX = 100 + bx * (blockSize + streetWidth)
-      const startY = 100 + by * (blockSize + streetWidth)
+  for (let by = 0; by * (blockSize + streetWidth) < MAP_HEIGHT - 10; by++) {
+    for (let bx = 0; bx * (blockSize + streetWidth) < MAP_WIDTH - 10; bx++) {
+      const startX = 5 + bx * (blockSize + streetWidth)
+      const startY = 5 + by * (blockSize + streetWidth)
 
-      // Skip ~30% blocks for open plazas/streets
       if (rng() < 0.3) continue
 
       const buildingType = rng()
 
       if (buildingType < 0.45) {
-        // Hollow brick building (only walls)
-        const w = rngInt(rng, 15, 30)
-        const h = rngInt(rng, 15, 25)
-        const ox = startX + rngInt(rng, 0, blockSize - w)
-        const oy = startY + rngInt(rng, 0, blockSize - h)
+        // Hollow brick building
+        const w = rngInt(rng, 5, 9)
+        const h = rngInt(rng, 5, 8)
+        const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
+        const oy = startY + rngInt(rng, 0, Math.max(0, blockSize - h))
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
@@ -59,14 +59,13 @@ export function generateMegapolisMap(): MapDefinition {
           }
         }
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
-        makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
 
       } else if (buildingType < 0.6) {
-        // Small steel bunker
-        const w = rngInt(rng, 4, 8)
-        const h = rngInt(rng, 4, 8)
-        const ox = startX + rngInt(rng, 5, blockSize - w - 5)
-        const oy = startY + rngInt(rng, 5, blockSize - h - 5)
+        // Steel bunker
+        const w = rngInt(rng, 2, 4)
+        const h = rngInt(rng, 2, 4)
+        const ox = startX + rngInt(rng, 1, Math.max(2, blockSize - w - 1))
+        const oy = startY + rngInt(rng, 1, Math.max(2, blockSize - h - 1))
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
@@ -76,10 +75,10 @@ export function generateMegapolisMap(): MapDefinition {
 
       } else if (buildingType < 0.75) {
         // Park
-        const w = rngInt(rng, 12, 25)
-        const h = rngInt(rng, 12, 25)
-        const ox = startX + rngInt(rng, 0, blockSize - w)
-        const oy = startY + rngInt(rng, 0, blockSize - h)
+        const w = rngInt(rng, 4, 8)
+        const h = rngInt(rng, 4, 8)
+        const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
+        const oy = startY + rngInt(rng, 0, Math.max(0, blockSize - h))
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
@@ -88,46 +87,43 @@ export function generateMegapolisMap(): MapDefinition {
         }
 
       } else {
-        // Mixed building: steel corners, brick walls
-        const w = rngInt(rng, 15, 25)
-        const h = rngInt(rng, 15, 25)
-        const ox = startX + rngInt(rng, 0, blockSize - w)
-        const oy = startY + rngInt(rng, 0, blockSize - h)
+        // Mixed building
+        const w = rngInt(rng, 5, 8)
+        const h = rngInt(rng, 5, 8)
+        const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
+        const oy = startY + rngInt(rng, 0, Math.max(0, blockSize - h))
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
             const isEdge = dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
-            const isCorner = (dx < 2 || dx >= w - 2) && (dy < 2 || dy >= h - 2)
+            const isCorner = (dx < 1 || dx >= w - 1) && (dy < 1 || dy >= h - 1)
             if (isCorner) addObstacle(ox + dx, oy + dy, ObstacleType.Steel)
             else if (isEdge) addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
           }
         }
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
-        makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
       }
     }
   }
 
-  // Two narrow water channels
-  for (let i = 0; i < 2; i++) {
-    const horizontal = rng() < 0.5
-    const pos = rngInt(rng, 600, MAP_WIDTH - 600)
-    const width = rngInt(rng, 3, 5)
+  // One water channel
+  const horizontal = rng() < 0.5
+  const pos = rngInt(rng, 60, MAP_WIDTH - 60)
+  const width = rngInt(rng, 2, 3)
 
-    if (horizontal) {
-      for (let x = 200; x < MAP_WIDTH - 200; x++) {
-        for (let w = 0; w < width; w++) addObstacle(x, pos + w, ObstacleType.Water)
-      }
-    } else {
-      for (let y = 200; y < MAP_HEIGHT - 200; y++) {
-        for (let w = 0; w < width; w++) addObstacle(pos + w, y, ObstacleType.Water)
-      }
+  if (horizontal) {
+    for (let x = 20; x < MAP_WIDTH - 20; x++) {
+      for (let w = 0; w < width; w++) addObstacle(x, pos + w, ObstacleType.Water)
+    }
+  } else {
+    for (let y = 20; y < MAP_HEIGHT - 20; y++) {
+      for (let w = 0; w < width; w++) addObstacle(pos + w, y, ObstacleType.Water)
     }
   }
 
   const occupied = new Set(obstacleMap.keys())
   const obstacles = Array.from(obstacleMap.values())
-  const spawnPoints = generateSpawnPoints(rng, occupied, 40)
+  const spawnPoints = generateSpawnPoints(rng, occupied, 20)
   const starPositions = generateStarPositions(rng, occupied, STARS_PER_MAP)
 
   return {
@@ -146,13 +142,13 @@ function generateSpawnPoints(rng: () => number, occupied: Set<string>, count: nu
   const points: Vec2[] = []
   let attempts = 0
   while (points.length < count && attempts < 5000) {
-    const x = rngInt(rng, 50, MAP_WIDTH - 50)
-    const y = rngInt(rng, 50, MAP_HEIGHT - 50)
+    const x = rngInt(rng, 5, MAP_WIDTH - 5)
+    const y = rngInt(rng, 5, MAP_HEIGHT - 5)
     attempts++
     if (occupied.has(`${x},${y}`)) continue
     let tooClose = false
     for (const p of points) {
-      if (distance(p, { x, y }) < 150) { tooClose = true; break }
+      if (distance(p, { x, y }) < 10) { tooClose = true; break }
     }
     if (tooClose) continue
     points.push({ x, y })
@@ -163,13 +159,13 @@ function generateSpawnPoints(rng: () => number, occupied: Set<string>, count: nu
 function generateStarPositions(rng: () => number, occupied: Set<string>, count: number): Vec2[] {
   const positions: Vec2[] = []
   const gridSize = Math.ceil(Math.sqrt(count))
-  const cellW = Math.floor(MAP_WIDTH / gridSize)
-  const cellH = Math.floor(MAP_HEIGHT / gridSize)
+  const cellW = Math.max(2, Math.floor(MAP_WIDTH / gridSize))
+  const cellH = Math.max(2, Math.floor(MAP_HEIGHT / gridSize))
   for (let gy = 0; gy < gridSize && positions.length < count; gy++) {
     for (let gx = 0; gx < gridSize && positions.length < count; gx++) {
       for (let attempt = 0; attempt < 50; attempt++) {
-        const x = gx * cellW + rngInt(rng, 10, cellW - 10)
-        const y = gy * cellH + rngInt(rng, 10, cellH - 10)
+        const x = gx * cellW + rngInt(rng, 1, Math.max(2, cellW - 1))
+        const y = gy * cellH + rngInt(rng, 1, Math.max(2, cellH - 1))
         if (!occupied.has(`${x},${y}`) && x > 0 && x < MAP_WIDTH && y > 0 && y < MAP_HEIGHT) {
           positions.push({ x, y })
           break

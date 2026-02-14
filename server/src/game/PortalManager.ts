@@ -51,8 +51,8 @@ export class PortalManager {
 
   private spawnPortal(now: number): void {
     for (let attempt = 0; attempt < 100; attempt++) {
-      const x = rngInt(this.rng, 100, this.mapWidth - 100)
-      const y = rngInt(this.rng, 100, this.mapHeight - 100)
+      const x = rngInt(this.rng, 10, this.mapWidth - 10)
+      const y = rngInt(this.rng, 10, this.mapHeight - 10)
 
       const obs = this.grid.getAt(x, y)
       if (obs && isBlockingMovement(obs.type)) continue

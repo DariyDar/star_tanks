@@ -1,6 +1,6 @@
 // Map
-export const MAP_WIDTH = 3000
-export const MAP_HEIGHT = 3000
+export const MAP_WIDTH = 200
+export const MAP_HEIGHT = 200
 export const CELL_SIZE = 24
 
 // Viewport
@@ -14,11 +14,11 @@ export const FIRE_COOLDOWN = 1000
 export const FIRE_COOLDOWN_RAPID = 500
 
 // Bullet
-export const BULLET_SPEED = 20
-export const BULLET_RANGE = 5
+export const BULLET_SPEED = 10
+export const BULLET_RANGE = 15
 
 // Stars
-export const STARS_PER_MAP = 100
+export const STARS_PER_MAP = 30
 export const STAR_RESPAWN_TIME = 30000
 
 // Power-ups
