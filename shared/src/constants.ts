@@ -10,6 +10,7 @@ export const VIEWPORT_PX = VIEWPORT_CELLS * CELL_SIZE
 // Tank
 export const TANK_HP = 5
 export const TANK_SPEED = 5
+export const BOT_SPEED = 3  // Bots move slower than players
 export const FIRE_COOLDOWN = 1000
 export const FIRE_COOLDOWN_RAPID = 500
 

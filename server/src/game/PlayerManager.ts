@@ -2,7 +2,7 @@ import {
   type Tank, type Vec2, type PlayerInput, Direction, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
-  TANK_HP, TANK_SPEED, TANK_COLORS
+  TANK_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS
 } from '@tank-br/shared/constants.js'
 
 export class PlayerManager {
@@ -35,7 +35,7 @@ export class PlayerManager {
       powerUpEndTime: 0,
       lastFireTime: 0,
       fireCooldown: 0,
-      speed: TANK_SPEED,
+      speed: isBot ? BOT_SPEED : TANK_SPEED,
       color: TANK_COLORS[this.colorIndex % TANK_COLORS.length],
       magnetRadius: 1  // Базовый радиус притяжения
     }
@@ -128,7 +128,8 @@ export class PlayerManager {
       if (tank.activePowerUp && now >= tank.powerUpEndTime) {
         tank.activePowerUp = null
         tank.powerUpEndTime = 0
-        tank.speed = TANK_SPEED
+        // Restore original speed based on bot status
+        tank.speed = tank.isBot ? BOT_SPEED : TANK_SPEED
       }
     }
   }

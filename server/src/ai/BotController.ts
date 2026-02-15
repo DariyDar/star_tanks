@@ -4,7 +4,7 @@ import { distance, vecToDirection } from '@tank-br/shared/math.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { findPath } from './Pathfinding.js'
 
-type BotState = 'patrol' | 'chase' | 'collect' | 'fleeZone'
+type BotState = 'patrol' | 'chase' | 'fleeZone'
 
 interface BotData {
   state: BotState
@@ -15,8 +15,6 @@ interface BotData {
 
 const RECALC_INTERVAL = 500
 const CHASE_RANGE = 15
-const POWERUP_RANGE = 20
-const STAR_RANGE = 30
 const ZONE_MARGIN = 10
 
 export class BotController {
@@ -89,33 +87,15 @@ export class BotController {
       distance(tank.position, t.position) < CHASE_RANGE
     )
     if (enemies.length > 0) {
-      const closest = enemies.reduce((a, b) =>
-        distance(tank.position, a.position) < distance(tank.position, b.position) ? a : b
-      )
+      // Target enemies with more stars first (aggressive behavior)
+      const sorted = enemies.sort((a, b) => b.stars - a.stars)
+      const target = sorted[0]
       data.state = 'chase'
-      data.targetId = closest.id
-      return this.moveToward(tank, data, closest.position, now)
+      data.targetId = target.id
+      return this.moveToward(tank, data, target.position, now)
     }
 
-    // Priority 3: Collect nearby power-up
-    const nearPU = powerUps.find(pu =>
-      distance(tank.position, pu.position) < POWERUP_RANGE
-    )
-    if (nearPU) {
-      data.state = 'collect'
-      return this.moveToward(tank, data, nearPU.position, now)
-    }
-
-    // Priority 4: Collect nearby star
-    const nearStar = stars.find(s =>
-      s.active && distance(tank.position, s.position) < STAR_RANGE
-    )
-    if (nearStar) {
-      data.state = 'collect'
-      return this.moveToward(tank, data, nearStar.position, now)
-    }
-
-    // Priority 5: Patrol
+    // Priority 3: Patrol
     data.state = 'patrol'
     return this.patrol(tank, data, now)
   }
