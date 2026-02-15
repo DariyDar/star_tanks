@@ -107,6 +107,22 @@ export function generateMegapolisMap(): MapDefinition {
     }
   }
 
+  // Quicksand patches scattered around the map
+  for (let i = 0; i < 8; i++) {
+    const cx = rngInt(rng, 25, MAP_WIDTH - 25)
+    const cy = rngInt(rng, 25, MAP_HEIGHT - 25)
+    const w = rngInt(rng, 3, 6)
+    const h = rngInt(rng, 3, 6)
+
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        if (rng() < 0.7) {  // 70% density for irregular patches
+          addObstacle(cx + dx, cy + dy, ObstacleType.Quicksand)
+        }
+      }
+    }
+  }
+
   // Small water features (fountains/ponds) instead of continuous channel
   for (let i = 0; i < 5; i++) {
     const cx = rngInt(rng, 20, MAP_WIDTH - 20)

@@ -146,7 +146,29 @@ export class Renderer {
       this.prevTankPositions.set(tank.id, { x: tank.position.x, y: tank.position.y })
     }
 
-    this.tankRenderer.render(ctx, displayTanks, camera, cellPx, playerId)
+    // Bush stealth: hide enemy tanks in bushes unless very close
+    const playerTank = state.tanks.find(t => t.id === playerId)
+    const visibleTanks = displayTanks.filter(tank => {
+      // Always show player's own tank
+      if (tank.id === playerId) return true
+
+      // If tank is not in bush, show it
+      if (!tank.inBush) return true
+
+      // Tank is in bush - only show if player is very close (within 3 units)
+      if (playerTank) {
+        const dx = tank.position.x - playerTank.position.x
+        const dy = tank.position.y - playerTank.position.y
+        const distSq = dx * dx + dy * dy
+        const STEALTH_REVEAL_DISTANCE = 3 // Reveal hidden tanks within 3 units
+        return distSq <= STEALTH_REVEAL_DISTANCE * STEALTH_REVEAL_DISTANCE
+      }
+
+      // If no player tank, hide all bushed tanks
+      return false
+    })
+
+    this.tankRenderer.render(ctx, visibleTanks, camera, cellPx, playerId)
 
     // Muzzle flashes (on top of tanks)
     this.effects.renderMuzzleFlashes(ctx, camera, cellPx)

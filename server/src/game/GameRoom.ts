@@ -133,7 +133,7 @@ export class GameRoom {
         // Clear queue to prevent input accumulation
         this.playerManager.clearInputQueue(tank.id)
 
-        this.physics.moveTank(tank, input.moveAngle, this.playerManager.getAllTanks())
+        this.physics.moveTank(tank, input.moveAngle, this.playerManager.getAllTanks(), this.now)
         tank.turretAngle = input.aimAngle
         // Fire if player requested
         if (input.fire) {
@@ -155,7 +155,7 @@ export class GameRoom {
     for (const [botId, move] of botMoves) {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
-        this.physics.moveTank(bot, move.moveAngle, allTanks)
+        this.physics.moveTank(bot, move.moveAngle, allTanks, this.now)
         bot.turretAngle = move.aimAngle
       }
     }
@@ -172,7 +172,7 @@ export class GameRoom {
     const hits = this.bulletManager.update(this.playerManager.getAllTanks())
     for (const hit of hits) {
       if (hit.type === 'tank') {
-        const killed = this.playerManager.damageTank(hit.targetId, 1)
+        const killed = this.playerManager.damageTank(hit.targetId, 1, this.now)
         if (killed) {
           const dead = this.playerManager.getTank(hit.targetId)
           const killer = this.playerManager.getTank(hit.bullet.ownerId)
@@ -206,6 +206,7 @@ export class GameRoom {
       (x, y) => this.zoneManager.isPositionInSafeZone(x, y)
     )
     this.playerManager.updatePowerUps(this.now)
+    this.playerManager.updateAutoRegen(this.now)
 
     // 6. Zone shrinking + damage
     this.zoneManager.update(this.playerManager.getAliveTanks(), elapsed, this.now)

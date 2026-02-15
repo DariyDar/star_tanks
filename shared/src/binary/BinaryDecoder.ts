@@ -281,7 +281,10 @@ export class BinaryDecoder {
       speed: 0,
       color,
       magnetRadius: 1,
-      tankRadius
+      tankRadius,
+      lastDamageTime: 0,
+      quicksandSlowEndTime: 0,
+      inBush: false
     }
   }
 

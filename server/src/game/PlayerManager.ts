@@ -49,7 +49,10 @@ export class PlayerManager {
       speed: isBot ? BOT_SPEED : TANK_SPEED,
       color: tankColor,
       magnetRadius: 1,  // Базовый радиус притяжения
-      tankRadius: getTankRadius(0)  // Базовый радиус танка
+      tankRadius: getTankRadius(0),  // Базовый радиус танка
+      lastDamageTime: 0,  // Время последнего урона
+      quicksandSlowEndTime: 0,  // Время окончания замедления
+      inBush: false  // Не в кустах при спавне
     }
 
     this.tanks.set(id, tank)
@@ -170,15 +173,21 @@ export class PlayerManager {
     tank.activePowerUp = null
     tank.powerUpEndTime = 0
     tank.lastFireTime = 0
+    tank.lastDamageTime = 0
+    tank.quicksandSlowEndTime = 0
+    tank.inBush = false
   }
 
-  damageTank(tankId: string, damage: number): boolean {
+  damageTank(tankId: string, damage: number, now?: number): boolean {
     const tank = this.tanks.get(tankId)
     if (!tank || !tank.isAlive) return false
 
     if (tank.activePowerUp === PowerUpType.Shield) return false
 
     tank.hp -= damage
+    if (now !== undefined) {
+      tank.lastDamageTime = now
+    }
     return tank.hp <= 0
   }
 
@@ -189,6 +198,21 @@ export class PlayerManager {
         tank.powerUpEndTime = 0
         // Restore original speed based on bot status
         tank.speed = tank.isBot ? BOT_SPEED : TANK_SPEED
+      }
+    }
+  }
+
+  updateAutoRegen(now: number): void {
+    const REGEN_DELAY = 30000 // 30 seconds without damage
+    for (const tank of this.tanks.values()) {
+      if (!tank.isAlive) continue
+      if (tank.hp >= tank.maxHp) continue
+
+      // If 30 seconds passed since last damage, regenerate +1 HP
+      if (now - tank.lastDamageTime >= REGEN_DELAY) {
+        tank.hp = Math.min(tank.hp + 1, tank.maxHp)
+        // Reset timer so it doesn't regen every tick
+        tank.lastDamageTime = now - REGEN_DELAY + 5000 // Next regen in 5 seconds
       }
     }
   }

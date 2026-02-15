@@ -7,15 +7,17 @@ import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 let powerUpIdCounter = 0
 
-// Weighted powerup pool - Heal appears 3x more often than others
+// Weighted powerup pool - Heal appears 5x more often than others
 const POWER_UP_TYPES = [
   PowerUpType.RapidFire,
   PowerUpType.Speed,
   PowerUpType.Shield,
   PowerUpType.Magnet,
   PowerUpType.Heal,
-  PowerUpType.Heal,  // Extra Heal for more healing
-  PowerUpType.Heal   // Extra Heal for more healing
+  PowerUpType.Heal,
+  PowerUpType.Heal,
+  PowerUpType.Heal,
+  PowerUpType.Heal   // Heal is 5 out of 9 (55% chance)
 ]
 
 export class PowerUpManager {

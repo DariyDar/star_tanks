@@ -9,7 +9,8 @@ export enum ObstacleType {
   Brick = 'brick',
   Steel = 'steel',
   Water = 'water',
-  Bush = 'bush'
+  Bush = 'bush',
+  Quicksand = 'quicksand'
 }
 
 export enum PowerUpType {
@@ -53,6 +54,9 @@ export interface Tank {
   color: string
   magnetRadius: number  // Радиус притяжения звёзд/бонусов (1-4)
   tankRadius: number    // Радиус танка для коллизий (растёт с количеством звёзд)
+  lastDamageTime: number // Время последнего урона (для авто-регенерации)
+  quicksandSlowEndTime: number // Время окончания замедления от зыбучих песков
+  inBush: boolean       // Находится ли танк в кустах (для скрытности)
 }
 
 export interface Bullet {

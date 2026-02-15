@@ -78,7 +78,7 @@ export class SpatialGrid {
 }
 
 export function isBlockingMovement(type: ObstacleType): boolean {
-  return type !== ObstacleType.Bush
+  return type !== ObstacleType.Bush && type !== ObstacleType.Quicksand
 }
 
 export function isBlockingBullet(type: ObstacleType): boolean {

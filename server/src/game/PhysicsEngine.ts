@@ -1,5 +1,5 @@
 import {
-  type Tank, type Vec2
+  type Tank, type Vec2, ObstacleType
 } from '@tank-br/shared/types.js'
 import {
   angleToVec, clamp
@@ -7,7 +7,7 @@ import {
 import {
   SpatialGrid, isBlockingMovement
 } from '@tank-br/shared/collision.js'
-import { TICK_MS } from '@tank-br/shared/constants.js'
+import { TICK_MS, TANK_SPEED, BOT_SPEED } from '@tank-br/shared/constants.js'
 
 export class PhysicsEngine {
   constructor(
@@ -16,7 +16,7 @@ export class PhysicsEngine {
     private readonly mapHeight: number
   ) {}
 
-  moveTank(tank: Tank, moveAngle: number | null, allTanks: Tank[]): void {
+  moveTank(tank: Tank, moveAngle: number | null, allTanks: Tank[], now: number): void {
     if (!tank.isAlive || moveAngle === null) return
 
     tank.hullAngle = moveAngle
@@ -39,6 +39,7 @@ export class PhysicsEngine {
     // Try full movement first
     if (!this.collidesWithObstacle(newX, newY, radius) && !this.collidesWithTank(newX, newY, tank.id, allTanks)) {
       tank.position = { x: newX, y: newY }
+      this.updateTerrainEffects(tank, now)
       return
     }
 
@@ -48,6 +49,7 @@ export class PhysicsEngine {
     if (!this.collidesWithObstacle(clampedSlideX, tank.position.y, radius) &&
         !this.collidesWithTank(clampedSlideX, tank.position.y, tank.id, allTanks)) {
       tank.position = { x: clampedSlideX, y: tank.position.y }
+      this.updateTerrainEffects(tank, now)
       return
     }
 
@@ -57,10 +59,13 @@ export class PhysicsEngine {
     if (!this.collidesWithObstacle(tank.position.x, clampedSlideY, radius) &&
         !this.collidesWithTank(tank.position.x, clampedSlideY, tank.id, allTanks)) {
       tank.position = { x: tank.position.x, y: clampedSlideY }
+      this.updateTerrainEffects(tank, now)
       return
     }
 
     // Fully blocked — don't move
+    // Still update terrain effects even if not moving
+    this.updateTerrainEffects(tank, now)
   }
 
   private collidesWithObstacle(cx: number, cy: number, radius: number): boolean {
@@ -107,6 +112,43 @@ export class PhysicsEngine {
       }
     }
     return false
+  }
+
+  private updateTerrainEffects(tank: Tank, now: number): void {
+    // Check what terrain the tank is on
+    const x = Math.floor(tank.position.x)
+    const y = Math.floor(tank.position.y)
+    const obs = this.grid.getAt(x, y)
+
+    // Check if in bush (for stealth)
+    tank.inBush = obs?.type === ObstacleType.Bush
+
+    // Check if in quicksand (for slow effect)
+    if (obs?.type === ObstacleType.Quicksand) {
+      // Apply slow effect for 10 seconds
+      if (now > tank.quicksandSlowEndTime) {
+        tank.quicksandSlowEndTime = now + 10000
+      }
+    }
+
+    // Apply or remove slow effect
+    if (now < tank.quicksandSlowEndTime) {
+      // Slow down by 1.5x
+      const baseSpeed = tank.isBot ? BOT_SPEED : TANK_SPEED
+      const slowedSpeed = baseSpeed / 1.5
+      // Only slow if not already slowed by quicksand
+      if (tank.speed >= baseSpeed * 0.9) {
+        tank.speed = slowedSpeed
+      }
+    } else if (tank.quicksandSlowEndTime > 0) {
+      // Restore speed when slow effect ends
+      const baseSpeed = tank.isBot ? BOT_SPEED : TANK_SPEED
+      // Only restore if not affected by speed powerup
+      if (tank.activePowerUp !== 'speed') {
+        tank.speed = baseSpeed
+      }
+      tank.quicksandSlowEndTime = 0
+    }
   }
 
   isPositionFree(pos: Vec2, radius = 0.45): boolean {

@@ -6,7 +6,8 @@ const OBSTACLE_COLORS: Record<ObstacleType, string> = {
   [ObstacleType.Brick]: '#C84B31',
   [ObstacleType.Steel]: '#7F8487',
   [ObstacleType.Water]: '#1A73E8',
-  [ObstacleType.Bush]: '#2D6A4F'
+  [ObstacleType.Bush]: '#2D6A4F',
+  [ObstacleType.Quicksand]: '#D4A574'
 }
 
 export class MapRenderer {
@@ -239,6 +240,61 @@ export class MapRenderer {
             ctx.arc(bx - r * 0.3, by - r * 0.3, r * 0.4, 0, Math.PI * 2)
             ctx.fill()
           }
+        }
+
+        // 3D Quicksand with flowing texture
+        if (obs.type === ObstacleType.Quicksand) {
+          const t = Date.now() / 1500
+
+          // Base quicksand with gradient
+          const sandGrad = ctx.createRadialGradient(
+            sx + cellPx / 2, sy + cellPx / 2, 0,
+            sx + cellPx / 2, sy + cellPx / 2, cellPx * 0.8
+          )
+          sandGrad.addColorStop(0, '#E8C896')
+          sandGrad.addColorStop(0.5, '#D4A574')
+          sandGrad.addColorStop(1, '#B8875C')
+
+          ctx.fillStyle = sandGrad
+          ctx.fillRect(sx, sy, cellPx, cellPx)
+
+          // Swirling pattern (animated)
+          ctx.strokeStyle = 'rgba(160, 120, 80, 0.3)'
+          ctx.lineWidth = 1.5
+          for (let i = 0; i < 3; i++) {
+            ctx.beginPath()
+            const angleOffset = t + i * Math.PI / 1.5
+            const radius = cellPx * (0.2 + i * 0.1)
+            for (let a = 0; a < Math.PI * 2; a += 0.3) {
+              const rx = sx + cellPx / 2 + Math.cos(a + angleOffset) * radius
+              const ry = sy + cellPx / 2 + Math.sin(a + angleOffset) * radius
+              if (a === 0) ctx.moveTo(rx, ry)
+              else ctx.lineTo(rx, ry)
+            }
+            ctx.closePath()
+            ctx.stroke()
+          }
+
+          // Dark center (sinking point)
+          const centerGrad = ctx.createRadialGradient(
+            sx + cellPx / 2, sy + cellPx / 2, 0,
+            sx + cellPx / 2, sy + cellPx / 2, cellPx * 0.15
+          )
+          centerGrad.addColorStop(0, 'rgba(80, 60, 40, 0.6)')
+          centerGrad.addColorStop(1, 'rgba(80, 60, 40, 0)')
+
+          ctx.fillStyle = centerGrad
+          ctx.beginPath()
+          ctx.arc(sx + cellPx / 2, sy + cellPx / 2, cellPx * 0.2, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Ripple effect
+          const ripple = Math.sin(t * 2) * 0.1
+          ctx.strokeStyle = `rgba(200, 160, 120, ${0.2 + ripple})`
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.arc(sx + cellPx / 2, sy + cellPx / 2, cellPx * (0.35 + ripple), 0, Math.PI * 2)
+          ctx.stroke()
         }
       }
     }
