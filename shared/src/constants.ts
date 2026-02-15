@@ -28,7 +28,8 @@ export const STAR_RESPAWN_TIME = 30000
 
 // Power-ups
 export const POWERUP_SPAWN_INTERVAL = 20000
-export const POWERUP_DURATION = 10000
+export const POWERUP_DURATION = 10000  // Длительность эффекта бонуса на танке
+export const POWERUP_LIFETIME = 30000  // Бонус лежит на карте 30 секунд
 export const SPEED_MULTIPLIER = 1.5
 
 // Battle Royale
@@ -39,7 +40,7 @@ export const ZONE_PAUSE_BETWEEN = 30000
 
 // Portals
 export const PORTAL_SPAWN_INTERVAL = 60000
-export const PORTAL_LIFETIME = 15000
+export const PORTAL_LIFETIME = 30000  // Портал живет 30 секунд
 export const PORTAL_EXIT_FADE_DURATION = 3000
 
 // Server

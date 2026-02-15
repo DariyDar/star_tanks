@@ -1,6 +1,6 @@
 import { type PowerUp, type Tank, type Vec2, PowerUpType } from '@tank-br/shared/types.js'
 import {
-  POWERUP_SPAWN_INTERVAL, POWERUP_DURATION, SPEED_MULTIPLIER,
+  POWERUP_SPAWN_INTERVAL, POWERUP_DURATION, POWERUP_LIFETIME, SPEED_MULTIPLIER,
   FIRE_COOLDOWN_RAPID
 } from '@tank-br/shared/constants.js'
 import { rngInt, createRng } from '@tank-br/shared/math.js'
@@ -29,9 +29,16 @@ export class PowerUpManager {
       this.lastSpawnTime = now
     }
 
-    // Check collection
+    // Remove expired powerups and check collection
     for (let i = this.powerUps.length - 1; i >= 0; i--) {
       const pu = this.powerUps[i]
+
+      // Remove if expired (30 seconds on map)
+      if (now - pu.spawnedAt >= POWERUP_LIFETIME) {
+        this.powerUps.splice(i, 1)
+        continue
+      }
+
       for (const tank of tanks) {
         if (!tank.isAlive) continue
         if (tank.isBot) continue  // Боты не собирают бонусы
