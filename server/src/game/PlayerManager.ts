@@ -133,12 +133,33 @@ export class PlayerManager {
     return droppedStars
   }
 
-  respawnTank(tankId: string): void {
+  respawnTank(tankId: string, isPositionSafe?: (x: number, y: number) => boolean): void {
     const tank = this.tanks.get(tankId)
     if (!tank) return
 
-    const spawn = this.spawnPoints[this.spawnIndex % this.spawnPoints.length]
-    this.spawnIndex++
+    // Find a safe spawn point
+    let spawn = this.spawnPoints[this.spawnIndex % this.spawnPoints.length]
+
+    // If zone check is provided, try to find a spawn point within safe zone
+    if (isPositionSafe) {
+      let foundSafe = false
+      for (let i = 0; i < this.spawnPoints.length; i++) {
+        const testSpawn = this.spawnPoints[(this.spawnIndex + i) % this.spawnPoints.length]
+        if (isPositionSafe(testSpawn.x, testSpawn.y)) {
+          spawn = testSpawn
+          this.spawnIndex = (this.spawnIndex + i + 1) % this.spawnPoints.length
+          foundSafe = true
+          break
+        }
+      }
+      // If no safe spawn points, tank will respawn but immediately take zone damage
+      // This is expected endgame behavior when zone is very small
+      if (!foundSafe) {
+        this.spawnIndex++
+      }
+    } else {
+      this.spawnIndex++
+    }
 
     tank.position = { x: spawn.x, y: spawn.y }
     tank.hullAngle = 0

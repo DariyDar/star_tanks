@@ -189,7 +189,7 @@ export class GameRoom {
           if (dead && this.phase !== GamePhase.GameOver) {
             const targetId = hit.targetId
             setTimeout(() => {
-              this.playerManager.respawnTank(targetId)
+              this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
             }, 3000)
           }
         }
@@ -200,7 +200,11 @@ export class GameRoom {
     this.starManager.update(this.playerManager.getAliveTanks(), this.now)
 
     // 5. Update power-ups
-    this.powerUpManager.update(this.playerManager.getAliveTanks(), this.now)
+    this.powerUpManager.update(
+      this.playerManager.getAliveTanks(),
+      this.now,
+      (x, y) => this.zoneManager.isPositionInSafeZone(x, y)
+    )
     this.playerManager.updatePowerUps(this.now)
 
     // 6. Zone shrinking + damage
@@ -215,7 +219,11 @@ export class GameRoom {
     }
 
     // 7. Portals
-    this.portalManager.update(this.now, elapsed)
+    this.portalManager.update(
+      this.now,
+      elapsed,
+      (x, y) => this.zoneManager.isPositionInSafeZone(x, y)
+    )
     const portalEntries = this.portalManager.checkPortalEntry(this.playerManager.getAliveTanks())
     for (const { tank } of portalEntries) {
       this.events.onPortalExit(tank.id, tank.name, tank.stars)

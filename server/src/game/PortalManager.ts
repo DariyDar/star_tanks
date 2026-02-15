@@ -18,13 +18,13 @@ export class PortalManager {
     this.rng = createRng(Date.now() + 999)
   }
 
-  update(now: number, elapsed: number): Portal[] {
+  update(now: number, elapsed: number, isPositionSafe?: (x: number, y: number) => boolean): Portal[] {
     // Remove expired portals
     this.portals = this.portals.filter(p => now < p.expiresAt)
 
     // Spawn new portal
     if (elapsed >= PORTAL_SPAWN_INTERVAL && now - this.lastSpawnTime >= PORTAL_SPAWN_INTERVAL) {
-      this.spawnPortal(now)
+      this.spawnPortal(now, isPositionSafe)
       this.lastSpawnTime = now
     }
 
@@ -49,13 +49,16 @@ export class PortalManager {
     return entries
   }
 
-  private spawnPortal(now: number): void {
+  private spawnPortal(now: number, isPositionSafe?: (x: number, y: number) => boolean): void {
     for (let attempt = 0; attempt < 100; attempt++) {
       const x = rngInt(this.rng, 10, this.mapWidth - 10)
       const y = rngInt(this.rng, 10, this.mapHeight - 10)
 
       const obs = this.grid.getAt(x, y)
       if (obs && isBlockingMovement(obs.type)) continue
+
+      // Check if position is within safe zone
+      if (isPositionSafe && !isPositionSafe(x, y)) continue
 
       this.portals.push({
         id: `portal_${portalIdCounter++}`,

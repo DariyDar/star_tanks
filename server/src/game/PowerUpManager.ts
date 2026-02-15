@@ -31,10 +31,10 @@ export class PowerUpManager {
     this.mapHeight = mapHeight
   }
 
-  update(tanks: Tank[], now: number): void {
+  update(tanks: Tank[], now: number, isPositionSafe?: (x: number, y: number) => boolean): void {
     // Spawn new power-up
     if (now - this.lastSpawnTime >= POWERUP_SPAWN_INTERVAL) {
-      this.spawnPowerUp(now)
+      this.spawnPowerUp(now, isPositionSafe)
       this.lastSpawnTime = now
     }
 
@@ -67,15 +67,33 @@ export class PowerUpManager {
     }
   }
 
-  private spawnPowerUp(now: number): void {
-    const x = rngInt(this.rng, 100, this.mapWidth - 100)
-    const y = rngInt(this.rng, 100, this.mapHeight - 100)
+  private spawnPowerUp(now: number, isPositionSafe?: (x: number, y: number) => boolean): void {
+    // Try to find a safe position within the zone
+    let x: number, y: number
+    let foundSafe = false
+
+    for (let attempt = 0; attempt < 50; attempt++) {
+      x = rngInt(this.rng, 100, this.mapWidth - 100)
+      y = rngInt(this.rng, 100, this.mapHeight - 100)
+
+      // If no zone check provided, or position is safe, use it
+      if (!isPositionSafe || isPositionSafe(x, y)) {
+        foundSafe = true
+        break
+      }
+    }
+
+    // If we couldn't find a safe position after 50 attempts, don't spawn
+    if (isPositionSafe && !foundSafe) {
+      return
+    }
+
     const type = POWER_UP_TYPES[rngInt(this.rng, 0, POWER_UP_TYPES.length - 1)]
 
     this.powerUps.push({
       id: `pu_${powerUpIdCounter++}`,
       type,
-      position: { x, y },
+      position: { x: x!, y: y! },
       spawnedAt: now
     })
 

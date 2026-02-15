@@ -73,4 +73,11 @@ export class ZoneManager {
   isFullyShrunk(): boolean {
     return this.zone.currentRadius <= 0
   }
+
+  isPositionInSafeZone(x: number, y: number): boolean {
+    const dx = x - this.zone.centerX
+    const dy = y - this.zone.centerY
+    const distSq = dx * dx + dy * dy
+    return distSq <= this.zone.currentRadius * this.zone.currentRadius
+  }
 }
