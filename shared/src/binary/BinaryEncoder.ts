@@ -1,44 +1,53 @@
-import { GameState, LeaderboardEntry, Tank, Bullet, PowerUp, Portal } from '../types.js'
+import { GameState, LeaderboardEntry, Tank, Bullet, PowerUp, Portal, Star } from '../types.js'
 import { IndexMap } from './IndexMap.js'
 import {
   MSG_FULL_STATE,
   MSG_LEADERBOARD,
   MSG_KILL,
   MSG_PORTAL_EXIT,
-  HEADER_SIZE,
-  ZONE_SIZE,
-  TANK_DATA_SIZE,
-  BULLET_DATA_SIZE,
-  POWERUP_DATA_SIZE,
-  PORTAL_DATA_SIZE,
   LEADERBOARD_ENTRY_SIZE,
   phaseToNumber,
   powerUpToNumber
 } from './BinaryProtocol.js'
 import { TANK_COLORS } from '../constants.js'
 
+// Star item size: index(1) + active(1) + respawnAt(4) = 6
+const STAR_ITEM_SIZE = 6
+// Tank size: index(1) + x(4) + y(4) + hullAngle(4) + turretAngle(4) + hp(1) + maxHp(1) + stars(2) + kills(2) + flags(1) + colorIdx(1) + powerUpEndTime(4) + fireCooldown(2) = 31
+const TANK_ENCODE_SIZE = 31
+// Bullet size: ownerIndex(1) + x(4) + y(4) + angle(4) + dist(1) = 14
+const BULLET_ENCODE_SIZE = 14
+// PowerUp size: x(4) + y(4) + type(1) + spawnedAt(1) = 10
+const POWERUP_ENCODE_SIZE = 10
+// Portal size: x(4) + y(4) + isActive(1) = 9
+const PORTAL_ENCODE_SIZE = 9
+
 /**
- * Encodes full game state into binary format
+ * Encodes full game state into binary format.
+ * Order must match BinaryDecoder: Header → Zone → Stars → Bullets → PowerUps → Portals → Tanks → Leaderboard
  */
 export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuffer {
-  const tankCount = state.tanks.length
+  const starCount = state.stars.length
   const bulletCount = state.bullets.length
   const powerUpCount = state.powerUps.length
   const portalCount = state.portals.length
-  
-  // Calculate total size
-  const size = HEADER_SIZE + ZONE_SIZE + 
-    1 + (tankCount * TANK_DATA_SIZE) +  // tankCount + tank data
-    1 + (bulletCount * BULLET_DATA_SIZE) +  // bulletCount + bullet data
-    4 +  // star active bits (uint32)
-    1 + (powerUpCount * POWERUP_DATA_SIZE) +  // powerUpCount + powerup data
-    1 + (portalCount * PORTAL_DATA_SIZE)  // portalCount + portal data
+  const tankCount = state.tanks.length
+  const leaderboardCount = state.leaderboard.length
+
+  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*31) + Leaderboard(1+n*6)
+  const size = 15 + 18 +
+    1 + starCount * STAR_ITEM_SIZE +
+    1 + bulletCount * BULLET_ENCODE_SIZE +
+    1 + powerUpCount * POWERUP_ENCODE_SIZE +
+    1 + portalCount * PORTAL_ENCODE_SIZE +
+    1 + tankCount * TANK_ENCODE_SIZE +
+    1 + leaderboardCount * LEADERBOARD_ENTRY_SIZE
 
   const buffer = new ArrayBuffer(size)
   const view = new DataView(buffer)
   let offset = 0
 
-  // Header (15 bytes)
+  // Header (15 bytes) — type already consumed by decoder before decodeFullState
   view.setUint8(offset, MSG_FULL_STATE); offset += 1
   view.setUint32(offset, state.tick, true); offset += 4
   view.setFloat32(offset, state.timestamp, true); offset += 4
@@ -46,19 +55,21 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   view.setUint8(offset, state.playersAlive); offset += 1
   view.setFloat32(offset, state.timeElapsed, true); offset += 4
 
-  // Zone (18 bytes)
-  view.setUint16(offset, Math.round(state.zone.centerX), true); offset += 2
-  view.setUint16(offset, Math.round(state.zone.centerY), true); offset += 2
+  // Zone (18 bytes) — decoder reads as float32 for centerX/Y
+  view.setFloat32(offset, state.zone.centerX, true); offset += 4
+  view.setFloat32(offset, state.zone.centerY, true); offset += 4
   view.setFloat32(offset, state.zone.currentRadius, true); offset += 4
   view.setFloat32(offset, state.zone.targetRadius, true); offset += 4
-  view.setUint8(offset, state.zone.isShrinking ? 1 : 0); offset += 1
   view.setUint8(offset, state.zone.phase); offset += 1
-  view.setFloat32(offset, state.zone.nextShrinkAt, true); offset += 4
+  view.setUint8(offset, state.zone.isShrinking ? 1 : 0); offset += 1
 
-  // Tanks
-  view.setUint8(offset, tankCount); offset += 1
-  for (const tank of state.tanks) {
-    offset = encodeTank(view, offset, tank, indexMap)
+  // Stars
+  view.setUint8(offset, starCount); offset += 1
+  for (let i = 0; i < starCount; i++) {
+    const star = state.stars[i]
+    view.setUint8(offset, i); offset += 1
+    view.setUint8(offset, star.active ? 1 : 0); offset += 1
+    view.setFloat32(offset, star.respawnAt, true); offset += 4
   }
 
   // Bullets
@@ -67,43 +78,46 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     offset = encodeBullet(view, offset, bullet, indexMap)
   }
 
-  // Stars (bitfield)
-  const starBits = computeStarBits(state.stars)
-  view.setUint32(offset, starBits, true); offset += 4
-
   // PowerUps
   view.setUint8(offset, powerUpCount); offset += 1
   for (const powerUp of state.powerUps) {
-    offset = encodePowerUp(view, offset, powerUp)
+    view.setFloat32(offset, powerUp.position.x, true); offset += 4
+    view.setFloat32(offset, powerUp.position.y, true); offset += 4
+    view.setUint8(offset, powerUpToNumber(powerUp.type)); offset += 1
+    view.setUint8(offset, 0); offset += 1 // spawnedAt placeholder
   }
 
   // Portals
   view.setUint8(offset, portalCount); offset += 1
   for (const portal of state.portals) {
-    offset = encodePortal(view, offset, portal)
+    view.setFloat32(offset, portal.position.x, true); offset += 4
+    view.setFloat32(offset, portal.position.y, true); offset += 4
+    view.setUint8(offset, 1); offset += 1 // isActive
+  }
+
+  // Tanks
+  view.setUint8(offset, tankCount); offset += 1
+  for (const tank of state.tanks) {
+    offset = encodeTank(view, offset, tank, indexMap)
+  }
+
+  // Leaderboard
+  view.setUint8(offset, leaderboardCount); offset += 1
+  for (const entry of state.leaderboard) {
+    offset = encodeLeaderboardEntry(view, offset, entry, indexMap)
   }
 
   return buffer
 }
 
-/**
- * Encodes a single tank (24 bytes)
- */
 function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexMap): number {
-  const index = indexMap.getIndex(tank.id)
-  if (index === undefined) {
-    throw new Error(`Tank ${tank.id} not found in index map`)
-  }
+  const index = indexMap.getIndex(tank.id) ?? 0xFF
 
-  // Build flags byte
+  // Flags: bit0=isAlive, bit1=isBot (matches decoder expectation)
   let flags = 0
-  if (tank.isBot) flags |= (1 << 0)
-  if (tank.isAlive) flags |= (1 << 1)
-  if (tank.activePowerUp === 'shield') flags |= (1 << 2)
-  if (tank.activePowerUp === 'rapidFire') flags |= (1 << 3)
-  if (tank.activePowerUp === 'speed') flags |= (1 << 4)
+  if (tank.isAlive) flags |= (1 << 0)
+  if (tank.isBot) flags |= (1 << 1)
 
-  // Find color index
   const colorIndex = TANK_COLORS.indexOf(tank.color)
 
   view.setUint8(offset, index); offset += 1
@@ -123,14 +137,8 @@ function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexM
   return offset
 }
 
-/**
- * Encodes a single bullet (11 bytes)
- */
 function encodeBullet(view: DataView, offset: number, bullet: Bullet, indexMap: IndexMap): number {
-  const ownerIndex = indexMap.getIndex(bullet.ownerId)
-  if (ownerIndex === undefined) {
-    throw new Error(`Bullet owner ${bullet.ownerId} not found in index map`)
-  }
+  const ownerIndex = indexMap.getIndex(bullet.ownerId) ?? 0xFF
 
   view.setUint8(offset, ownerIndex); offset += 1
   view.setFloat32(offset, bullet.position.x, true); offset += 4
@@ -141,46 +149,23 @@ function encodeBullet(view: DataView, offset: number, bullet: Bullet, indexMap: 
   return offset
 }
 
-/**
- * Computes star active bitfield (30 stars max)
- */
-function computeStarBits(stars: Array<{ active: boolean }>): number {
-  let bits = 0
-  for (let i = 0; i < Math.min(stars.length, 30); i++) {
-    if (stars[i].active) {
-      bits |= (1 << i)
-    }
-  }
-  return bits
-}
+function encodeLeaderboardEntry(view: DataView, offset: number, entry: LeaderboardEntry, indexMap: IndexMap): number {
+  const index = indexMap.getIndex(entry.id) ?? 0xFF
 
-/**
- * Encodes a single powerup (10 bytes)
- */
-function encodePowerUp(view: DataView, offset: number, powerUp: PowerUp): number {
-  view.setUint8(offset, powerUpToNumber(powerUp.type)); offset += 1
-  view.setFloat32(offset, powerUp.position.x, true); offset += 4
-  view.setFloat32(offset, powerUp.position.y, true); offset += 4
-  view.setUint8(offset, parseInt(powerUp.id.split('_')[1] || '0')); offset += 1
+  let flags = 0
+  if (entry.isAlive) flags |= (1 << 0)
+
+  view.setUint8(offset, index); offset += 1
+  view.setUint16(offset, entry.kills, true); offset += 2
+  view.setUint16(offset, entry.stars, true); offset += 2
+  view.setUint8(offset, flags); offset += 1
+
   return offset
 }
 
-/**
- * Encodes a single portal (9 bytes)
- */
-function encodePortal(view: DataView, offset: number, portal: Portal): number {
-  view.setFloat32(offset, portal.position.x, true); offset += 4
-  view.setFloat32(offset, portal.position.y, true); offset += 4
-  view.setUint8(offset, parseInt(portal.id.split('_')[1] || '0')); offset += 1
-  return offset
-}
-
-/**
- * Encodes leaderboard (sent every 5th tick)
- */
 export function encodeLeaderboard(entries: LeaderboardEntry[], indexMap: IndexMap): ArrayBuffer {
   const entryCount = entries.length
-  const size = 2 + (entryCount * LEADERBOARD_ENTRY_SIZE)  // type + count + entries
+  const size = 2 + (entryCount * LEADERBOARD_ENTRY_SIZE)
   const buffer = new ArrayBuffer(size)
   const view = new DataView(buffer)
   let offset = 0
@@ -189,45 +174,26 @@ export function encodeLeaderboard(entries: LeaderboardEntry[], indexMap: IndexMa
   view.setUint8(offset, entryCount); offset += 1
 
   for (const entry of entries) {
-    const index = indexMap.getIndex(entry.id)
-    if (index === undefined) continue
-
-    let flags = 0
-    if (entry.isAlive) flags |= (1 << 0)
-
-    view.setUint8(offset, index); offset += 1
-    view.setUint16(offset, entry.stars, true); offset += 2
-    view.setUint16(offset, entry.kills, true); offset += 2
-    view.setUint8(offset, flags); offset += 1
+    offset = encodeLeaderboardEntry(view, offset, entry, indexMap)
   }
 
   return buffer
 }
 
-/**
- * Encodes kill event
- */
 export function encodeKillEvent(deadIndex: number, killerIndex: number): ArrayBuffer {
   const buffer = new ArrayBuffer(3)
   const view = new DataView(buffer)
-  
   view.setUint8(0, MSG_KILL)
   view.setUint8(1, deadIndex)
-  view.setUint8(2, killerIndex === -1 ? 0xFF : killerIndex)  // 0xFF = zone kill
-
+  view.setUint8(2, killerIndex === -1 ? 0xFF : killerIndex)
   return buffer
 }
 
-/**
- * Encodes portal exit event
- */
 export function encodePortalExitEvent(playerIndex: number, stars: number): ArrayBuffer {
   const buffer = new ArrayBuffer(4)
   const view = new DataView(buffer)
-  
   view.setUint8(0, MSG_PORTAL_EXIT)
   view.setUint8(1, playerIndex)
   view.setUint16(2, stars, true)
-
   return buffer
 }

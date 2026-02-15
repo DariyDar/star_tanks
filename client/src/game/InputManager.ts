@@ -19,6 +19,8 @@ export class InputManager {
 
   constructor() {
     window.addEventListener('keydown', (e) => {
+      // Ignore keystrokes when typing in input fields
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
       this.keys.add(e.key)
     })
     window.addEventListener('keyup', (e) => {

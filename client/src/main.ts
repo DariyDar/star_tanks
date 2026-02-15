@@ -8,6 +8,8 @@ import { MobileControls } from './ui/MobileControls.js'
 import { LobbyScreen } from './ui/LobbyScreen.js'
 
 const canvas = document.getElementById('game') as HTMLCanvasElement
+canvas.tabIndex = 1 // Make canvas focusable for keyboard input
+canvas.style.outline = 'none' // Remove focus outline
 const client = new GameClient()
 const input = new InputManager()
 input.setCanvas(canvas)
@@ -56,6 +58,7 @@ const socket = new SocketClient({
     renderer.effects.reset()
     resultScreen.hide()
     lobby.hide()
+    canvas.focus() // Return keyboard focus to game
     joined = true
 
     // Store account stars if provided
