@@ -208,6 +208,7 @@ export class BinaryDecoder {
       powerUps,
       portals,
       zone,
+      boss: null, // TODO: Implement boss binary encoding/decoding
       leaderboard,
       playersAlive,
       timeElapsed

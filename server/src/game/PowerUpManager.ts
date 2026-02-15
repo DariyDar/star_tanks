@@ -123,6 +123,10 @@ export class PowerUpManager {
     }
   }
 
+  addPowerUp(powerUp: PowerUp): void {
+    this.powerUps.push(powerUp)
+  }
+
   getPowerUps(): PowerUp[] {
     return this.powerUps
   }

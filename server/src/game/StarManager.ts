@@ -67,6 +67,10 @@ export class StarManager {
     }
   }
 
+  addStar(star: Star): void {
+    this.stars.push(star)
+  }
+
   getStars(): Star[] {
     return this.stars
   }

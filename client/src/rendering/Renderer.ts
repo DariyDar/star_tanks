@@ -8,6 +8,7 @@ import { HudRenderer } from './HudRenderer.js'
 import { MinimapRenderer } from './MinimapRenderer.js'
 import { ZoneRenderer } from './ZoneRenderer.js'
 import { EffectsRenderer } from './EffectsRenderer.js'
+import { BossRenderer } from './BossRenderer.js'
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D
@@ -18,6 +19,7 @@ export class Renderer {
   private hudRenderer = new HudRenderer()
   private minimapRenderer = new MinimapRenderer()
   private zoneRenderer = new ZoneRenderer()
+  private bossRenderer = new BossRenderer()
   readonly effects = new EffectsRenderer()
   private cellPx = CELL_SIZE
   private mapLoaded = false
@@ -169,6 +171,9 @@ export class Renderer {
     })
 
     this.tankRenderer.render(ctx, visibleTanks, camera, cellPx, playerId)
+
+    // Boss (rendered after tanks)
+    this.bossRenderer.render(ctx, state.boss, camera, cellPx)
 
     // Muzzle flashes (on top of tanks)
     this.effects.renderMuzzleFlashes(ctx, camera, cellPx)

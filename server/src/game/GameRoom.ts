@@ -14,6 +14,7 @@ import { StarManager } from './StarManager.js'
 import { PowerUpManager } from './PowerUpManager.js'
 import { ZoneManager } from './ZoneManager.js'
 import { PortalManager } from './PortalManager.js'
+import { BossManager } from './BossManager.js'
 import { BotController } from '../ai/BotController.js'
 import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
 import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
@@ -38,6 +39,7 @@ export class GameRoom {
   private powerUpManager: PowerUpManager
   private zoneManager: ZoneManager
   private portalManager: PortalManager
+  private bossManager: BossManager | null = null
   private botController: BotController
   private indexMap: IndexMap = new IndexMap()
   private events: GameRoomEvents
@@ -64,6 +66,11 @@ export class GameRoom {
     this.zoneManager = new ZoneManager(this.map.width, this.map.height)
     this.portalManager = new PortalManager(this.grid, this.map.width, this.map.height)
     this.botController = new BotController(this.grid, this.map.width, this.map.height)
+
+    // Boss only spawns on Village map
+    if (mapId === 'village') {
+      this.bossManager = new BossManager(this.map.width, this.map.height, true)
+    }
 
     this.gameLoop = new GameLoop((tick, deltaMs) => this.tick(tick, deltaMs))
   }
@@ -168,8 +175,83 @@ export class GameRoom {
       }
     }
 
+    // 2b. Boss update and attacks
+    if (this.bossManager) {
+      const bossResult = this.bossManager.update(this.now, allTanks, this.bulletManager.getBullets())
+
+      // Add boss bullets to bullet manager
+      for (const bullet of bossResult.newBullets) {
+        this.bulletManager.addBullet(bullet)
+      }
+
+      // Apply boss laser/attack damage to tanks
+      for (const damageEvent of bossResult.damageEvents) {
+        const killed = this.playerManager.damageTank(damageEvent.tankId, damageEvent.damage, this.now)
+        if (killed) {
+          const dead = this.playerManager.getTank(damageEvent.tankId)
+          const droppedStars = this.playerManager.killTank(damageEvent.tankId, null)
+
+          if (dead) {
+            this.events.onKill(dead.id, dead.name, '', 'Boss')
+          }
+
+          if (dead && droppedStars > 0) {
+            this.starManager.dropStarsAtPosition(dead.position, droppedStars)
+          }
+
+          if (dead && this.phase !== GamePhase.GameOver) {
+            const targetId = damageEvent.tankId
+            setTimeout(() => {
+              this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+            }, 3000)
+          }
+        }
+      }
+
+      // Merge boss-dropped stars into star manager
+      const bossStars = this.bossManager.getDroppedStars()
+      for (const star of bossStars) {
+        this.starManager.addStar(star)
+      }
+
+      // Merge boss-dropped powerups into powerup manager
+      const bossPowerUps = this.bossManager.getDroppedPowerUps()
+      for (const powerUp of bossPowerUps) {
+        this.powerUpManager.addPowerUp(powerUp)
+      }
+    }
+
     // 3. Update bullets and check hits
     const hits = this.bulletManager.update(this.playerManager.getAllTanks())
+
+    // Check if any bullets hit the boss
+    if (this.bossManager) {
+      const boss = this.bossManager.getBoss()
+      if (boss && boss.isAlive) {
+        const bossRadius = this.bossManager.getRadius()
+        for (const bullet of this.bulletManager.getBullets()) {
+          // Skip boss's own bullets
+          if (bullet.ownerId === boss.id) continue
+
+          const dx = bullet.position.x - boss.position.x
+          const dy = bullet.position.y - boss.position.y
+          const distSq = dx * dx + dy * dy
+          const hitRadiusSq = bossRadius * bossRadius
+
+          if (distSq <= hitRadiusSq) {
+            // Bullet hit boss
+            const bossKilled = this.bossManager.damageBoss(1, this.now)
+            this.bulletManager.removeBullet(bullet.id)
+
+            if (bossKilled) {
+              // Boss defeated! Major rewards already dropped by BossManager
+              // Optionally notify clients or trigger special event
+            }
+          }
+        }
+      }
+    }
+
     for (const hit of hits) {
       if (hit.type === 'tank') {
         const killed = this.playerManager.damageTank(hit.targetId, 1, this.now)
@@ -294,6 +376,7 @@ export class GameRoom {
       powerUps: this.powerUpManager.getPowerUps(),
       portals: this.portalManager.getPortals(),
       zone: this.zoneManager.getZone(),
+      boss: this.bossManager ? this.bossManager.getBoss() : null,
       leaderboard,
       playersAlive: this.playerManager.aliveCount,
       timeElapsed

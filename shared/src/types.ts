@@ -21,6 +21,19 @@ export enum PowerUpType {
   Heal = 'heal'
 }
 
+export enum BossAttackType {
+  CircularBarrage = 'circularBarrage',    // 16 bullets in circle
+  FanShot = 'fanShot',                    // 5 bullets in fan
+  Spiral = 'spiral',                       // Rotating spiral pattern
+  RotatingLaser = 'rotatingLaser',        // Rotating laser beam
+  TripleShot = 'tripleShot',              // Rapid triple shots
+  TeleportExplosion = 'teleportExplosion', // Teleport and explode
+  MineField = 'mineField',                // Deploy mines
+  BulletWave = 'bulletWave',              // Sequential waves
+  ChaosFire = 'chaosFire',                // Random directions
+  RageMode = 'rageMode'                   // Fast firing when low HP
+}
+
 export enum GamePhase {
   Lobby = 'lobby',
   Countdown = 'countdown',
@@ -88,6 +101,21 @@ export interface Portal {
   expiresAt: number
 }
 
+export interface Boss {
+  id: string
+  position: Vec2
+  hp: number
+  maxHp: number
+  currentAttack: BossAttackType | null
+  lastAttackTime: number
+  nextAttackAt: number
+  phase: number  // 0-10, represents HP thresholds (10% each)
+  angle: number  // Boss facing direction
+  laserAngle?: number  // For rotating laser attack
+  isAlive: boolean
+  lastPhaseRewardAt: number  // Track when we last gave phase rewards
+}
+
 export interface Zone {
   centerX: number
   centerY: number
@@ -129,6 +157,7 @@ export interface GameState {
   powerUps: PowerUp[]
   portals: Portal[]
   zone: Zone
+  boss: Boss | null
   leaderboard: LeaderboardEntry[]
   playersAlive: number
   timeElapsed: number

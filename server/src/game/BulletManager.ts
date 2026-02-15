@@ -134,6 +134,14 @@ export class BulletManager {
     return null
   }
 
+  addBullet(bullet: Bullet): void {
+    this.bullets.push(bullet)
+  }
+
+  removeBullet(bulletId: string): void {
+    this.bullets = this.bullets.filter(b => b.id !== bulletId)
+  }
+
   getBullets(): Bullet[] {
     return this.bullets
   }
