@@ -108,7 +108,14 @@ export class GameRoom {
     const mapInfo = MAP_INFO.find(m => m.id === this.mapId)
     const botCount = mapInfo?.botCount ?? 0
     for (let i = 0; i < botCount; i++) {
-      this.playerManager.addPlayer(`bot_${i}`, `Bot ${i + 1}`, true)
+      const botId = `bot_${i}`
+      this.playerManager.addPlayer(botId, `Bot ${i + 1}`, true)
+      // Register bot in IndexMap so metadata is sent to clients
+      try {
+        this.indexMap.assign(botId)
+      } catch (e) {
+        // ignore if no space
+      }
     }
 
     this.gameLoop.start()
