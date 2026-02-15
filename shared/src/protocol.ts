@@ -23,6 +23,13 @@ export interface ServerJoinedPayload {
   mapData: CompressedMapData
 }
 
+// Extended join payload for binary protocol (Phase 1)
+export interface ServerJoinedPayloadBinary extends ServerJoinedPayload {
+  tankIndex: number
+  starPositions: Array<{ x: number; y: number }>
+  tankMeta: Array<{ index: number; id: string; name: string; color: string }>
+}
+
 export interface ServerStatePayload extends GameState {}
 
 export interface ServerKillPayload {

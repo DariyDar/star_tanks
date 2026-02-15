@@ -15,6 +15,8 @@ import { PowerUpManager } from './PowerUpManager.js'
 import { ZoneManager } from './ZoneManager.js'
 import { PortalManager } from './PortalManager.js'
 import { BotController } from '../ai/BotController.js'
+import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
+import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
 
 export interface GameRoomEvents {
   onStateUpdate: (state: GameState) => void
@@ -37,6 +39,7 @@ export class GameRoom {
   private zoneManager: ZoneManager
   private portalManager: PortalManager
   private botController: BotController
+  private indexMap: IndexMap = new IndexMap()
   private events: GameRoomEvents
   private phase: GamePhase = GamePhase.Lobby
   private startTime = 0
@@ -70,6 +73,11 @@ export class GameRoom {
     if (this.phase === GamePhase.GameOver) return false
 
     this.playerManager.addPlayer(playerId, name, false)
+    try {
+      this.indexMap.assign(playerId)
+    } catch (e) {
+      // ignore if no space
+    }
 
     if (this.phase === GamePhase.Lobby) {
       this.startGame()
@@ -81,6 +89,7 @@ export class GameRoom {
   removePlayer(playerId: string): void {
     this.bulletManager.removeBulletsOfOwner(playerId)
     this.playerManager.removePlayer(playerId)
+    this.indexMap.release(playerId)
 
     if (this.playerManager.playerCount === 0 && this.gameLoop.isRunning) {
       this.stop()
@@ -239,6 +248,19 @@ export class GameRoom {
       playersAlive: this.playerManager.aliveCount,
       timeElapsed
     }
+  }
+
+  buildBinaryState(tick: number, timeElapsed: number): ArrayBuffer {
+    const state = this.buildGameState(tick, timeElapsed)
+    return encodeFullState(state, this.indexMap as any)
+  }
+
+  getIndexMap(): IndexMap {
+    return this.indexMap
+  }
+
+  get starPositions() {
+    return this.map.starPositions
   }
 
   stop(): void {
