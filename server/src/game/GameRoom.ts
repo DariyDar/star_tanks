@@ -14,6 +14,7 @@ import { StarManager } from './StarManager.js'
 import { PowerUpManager } from './PowerUpManager.js'
 import { ZoneManager } from './ZoneManager.js'
 import { PortalManager } from './PortalManager.js'
+import { BossManager } from './BossManager.js'
 import { BotController } from '../ai/BotController.js'
 import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
 import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
@@ -38,6 +39,7 @@ export class GameRoom {
   private powerUpManager: PowerUpManager
   private zoneManager: ZoneManager
   private portalManager: PortalManager
+  private bossManager: BossManager | null = null
   private botController: BotController
   private indexMap: IndexMap = new IndexMap()
   private events: GameRoomEvents
@@ -64,6 +66,11 @@ export class GameRoom {
     this.zoneManager = new ZoneManager(this.map.width, this.map.height)
     this.portalManager = new PortalManager(this.grid, this.map.width, this.map.height)
     this.botController = new BotController(this.grid, this.map.width, this.map.height)
+
+    // Boss attacks manager for Village map (boss tank is created separately)
+    if (mapId === 'village') {
+      this.bossManager = new BossManager(this.map.width, this.map.height, false)
+    }
 
     this.gameLoop = new GameLoop((tick, deltaMs) => this.tick(tick, deltaMs))
   }
@@ -176,8 +183,51 @@ export class GameRoom {
     // 2. Bot firing (fire when turret is aimed at a target)
     for (const tank of this.playerManager.getAliveTanks()) {
       if (!tank.isBot) continue
+      // Boss fires through special attacks, not regular firing
+      if (tank.id === 'boss_1') continue
       if (this.shouldBotFire(tank, allTanks)) {
         this.bulletManager.tryFire(tank, this.now)
+      }
+    }
+
+    // 2b. Boss special attacks (if boss tank exists)
+    if (this.bossManager) {
+      const bossTank = this.playerManager.getTank('boss_1')
+      if (bossTank && bossTank.isAlive) {
+        const bossResult = this.bossManager.updateAttacks(
+          bossTank.position,
+          this.now,
+          allTanks
+        )
+
+        // Add boss attack bullets to bullet manager
+        for (const bullet of bossResult.newBullets) {
+          this.bulletManager.addBullet(bullet)
+        }
+
+        // Apply boss laser/attack damage to tanks
+        for (const damageEvent of bossResult.damageEvents) {
+          const killed = this.playerManager.damageTank(damageEvent.tankId, damageEvent.damage, this.now)
+          if (killed) {
+            const dead = this.playerManager.getTank(damageEvent.tankId)
+            const droppedStars = this.playerManager.killTank(damageEvent.tankId, 'boss_1')
+
+            if (dead && bossTank) {
+              this.events.onKill(dead.id, dead.name, bossTank.id, bossTank.name)
+            }
+
+            if (dead && droppedStars > 0) {
+              this.starManager.dropStarsAtPosition(dead.position, droppedStars)
+            }
+
+            if (dead && this.phase !== GamePhase.GameOver) {
+              const targetId = damageEvent.tankId
+              setTimeout(() => {
+                this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+              }, 3000)
+            }
+          }
+        }
       }
     }
 
