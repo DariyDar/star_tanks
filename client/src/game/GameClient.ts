@@ -96,12 +96,12 @@ export class GameClient {
         const dist = Math.sqrt(dx * dx + dy * dy)
 
         // If too far off, snap immediately to server position
-        if (dist > 2) {
+        if (dist > 1) {
           this.predictedPos = { ...myTank.position }
         }
         // If small difference, smoothly blend towards server position
-        else if (dist > 0.1) {
-          const blendFactor = 0.3  // Blend 30% towards server position
+        else if (dist > 0.05) {
+          const blendFactor = 0.7  // Faster correction to prevent sliding
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor
         }
