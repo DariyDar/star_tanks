@@ -1,12 +1,14 @@
-import type { Bullet, Tank, Vec2 } from '@tank-br/shared/types.js'
-import { BossAttackType } from '@tank-br/shared/types.js'
+import type { Bullet, Tank, Vec2, PowerUp } from '@tank-br/shared/types.js'
+import { BossAttackType, PowerUpType } from '@tank-br/shared/types.js'
 import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 const BOSS_ATTACK_COOLDOWN = 3000 // 3 seconds between attacks
 const LASER_DAMAGE = 1
 const LASER_ROTATION_SPEED = 0.05 // radians per tick
+const HP_THRESHOLDS = [90, 80, 70, 60, 50, 40, 30, 20, 10] // Boss drops rewards at these HP values
 
 let bulletIdCounter = 0
+let powerUpIdCounter = 0
 
 export class BossManager {
   private currentAttack: BossAttackType | null = null
@@ -16,6 +18,7 @@ export class BossManager {
   private rng: () => number
   private mapWidth: number
   private mapHeight: number
+  private passedThresholds = new Set<number>() // Track which HP thresholds have been passed
 
   constructor(mapWidth: number, mapHeight: number, _shouldSpawn: boolean) {
     this.rng = createRng(Date.now() + 12345)
@@ -26,10 +29,23 @@ export class BossManager {
   updateAttacks(
     bossPosition: Vec2,
     now: number,
-    tanks: Tank[]
-  ): { newBullets: Bullet[]; damageEvents: Array<{ tankId: string; damage: number }> } {
+    tanks: Tank[],
+    bossHp: number
+  ): {
+    newBullets: Bullet[]
+    damageEvents: Array<{ tankId: string; damage: number }>
+    droppedStars: number
+    droppedPowerUps: PowerUp[]
+  } {
     const newBullets: Bullet[] = []
     const damageEvents: Array<{ tankId: string; damage: number }> = []
+    let droppedStars = 0
+    const droppedPowerUps: PowerUp[] = []
+
+    // Check if boss passed any HP threshold
+    const rewards = this.checkHPThresholds(bossHp, bossPosition)
+    droppedStars = rewards.stars
+    droppedPowerUps.push(...rewards.powerUps)
 
     // Check if it's time for a new attack
     if (now >= this.nextAttackAt) {
@@ -60,7 +76,7 @@ export class BossManager {
       }
     }
 
-    return { newBullets, damageEvents }
+    return { newBullets, damageEvents, droppedStars, droppedPowerUps }
   }
 
   private startNewAttack(now: number): void {
@@ -375,6 +391,51 @@ export class BossManager {
     if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff
 
     return angleDiff < 0.1 // Laser width tolerance
+  }
+
+  private checkHPThresholds(currentHp: number, bossPos: Vec2): { stars: number; powerUps: PowerUp[] } {
+    let droppedStars = 0
+    const droppedPowerUps: PowerUp[] = []
+
+    // Check each threshold
+    for (const threshold of HP_THRESHOLDS) {
+      // If boss HP is at or below this threshold and we haven't passed it yet
+      if (currentHp <= threshold && !this.passedThresholds.has(threshold)) {
+        this.passedThresholds.add(threshold)
+
+        // Drop 5 stars per threshold
+        droppedStars += 5
+
+        // Drop 1-2 random powerups per threshold
+        const powerUpCount = rngInt(this.rng, 1, 2)
+        for (let i = 0; i < powerUpCount; i++) {
+          droppedPowerUps.push(this.createRandomPowerUp(bossPos))
+        }
+      }
+    }
+
+    return { stars: droppedStars, powerUps: droppedPowerUps }
+  }
+
+  private createRandomPowerUp(bossPos: Vec2): PowerUp {
+    // Random powerup type: RapidFire, Shield, or Heal
+    const types = [PowerUpType.RapidFire, PowerUpType.Shield, PowerUpType.Heal]
+    const selectedType = types[rngInt(this.rng, 0, types.length - 1)]
+
+    // Scatter powerups around boss position
+    const offsetX = (this.rng() - 0.5) * 10 // Random offset within 5 units
+    const offsetY = (this.rng() - 0.5) * 10
+
+    return {
+      id: `boss_powerup_${powerUpIdCounter++}`,
+      type: selectedType,
+      position: {
+        x: bossPos.x + offsetX,
+        y: bossPos.y + offsetY
+      },
+      active: true,
+      spawnedAt: Date.now()
+    }
   }
 
   private findNearestTank(tanks: Tank[], bossPos: Vec2): Tank | null {

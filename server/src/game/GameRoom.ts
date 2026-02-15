@@ -197,12 +197,23 @@ export class GameRoom {
         const bossResult = this.bossManager.updateAttacks(
           bossTank.position,
           this.now,
-          allTanks
+          allTanks,
+          bossTank.hp
         )
 
         // Add boss attack bullets to bullet manager
         for (const bullet of bossResult.newBullets) {
           this.bulletManager.addBullet(bullet)
+        }
+
+        // Drop stars if boss passed HP threshold
+        if (bossResult.droppedStars > 0) {
+          this.starManager.dropStarsAtPosition(bossTank.position, bossResult.droppedStars)
+        }
+
+        // Add dropped powerups to powerup manager
+        for (const powerUp of bossResult.droppedPowerUps) {
+          this.powerUpManager.addPowerUp(powerUp)
         }
 
         // Apply boss laser/attack damage to tanks
