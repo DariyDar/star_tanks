@@ -40,6 +40,10 @@ export class InputManager {
     return this.lastDirection
   }
 
+  isFiring(): boolean {
+    return this.keys.has(' ') || this.keys.has('Space')
+  }
+
   setMoveDirection(dir: Direction | null): void {
     // For mobile controls
     this.keys.clear()

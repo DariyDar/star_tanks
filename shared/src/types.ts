@@ -140,6 +140,7 @@ export interface PlayerInput {
   sequenceNumber: number
   moveDirection: Direction | null
   aimDirection: Direction
+  fire: boolean  // Whether player wants to fire this tick
 }
 
 export interface RoomInfo {

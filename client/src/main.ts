@@ -132,7 +132,8 @@ function gameLoop(now: number) {
         tick: client.state?.tick ?? 0,
         sequenceNumber: sequenceNumber++,
         moveDirection: moveDir,
-        aimDirection: aimDir
+        aimDirection: aimDir,
+        fire: input.isFiring()
       })
     }
 

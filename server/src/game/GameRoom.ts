@@ -1,7 +1,7 @@
 import {
   type GameState, type MapDefinition, type PlayerInput,
-  type LeaderboardEntry, type MapId,
-  GamePhase
+  type LeaderboardEntry, type MapId, type Tank,
+  GamePhase, Direction
 } from '@tank-br/shared/types.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { getMap, MAP_INFO } from '@tank-br/shared/maps/index.js'
@@ -118,7 +118,7 @@ export class GameRoom {
     this.now = Date.now()
     const elapsed = this.now - this.startTime
 
-    // 1. Process player inputs
+    // 1. Process player inputs and fire
     for (const tank of this.playerManager.getAllTanks()) {
       if (tank.isBot) continue
       const input = this.playerManager.consumeInput(tank.id)
@@ -127,10 +127,14 @@ export class GameRoom {
         if (input.aimDirection) {
           tank.direction = input.aimDirection
         }
+        // Fire if player pressed fire button
+        if (input.fire) {
+          this.bulletManager.tryFire(tank, this.now)
+        }
       }
     }
 
-    // 1b. Bot AI movement
+    // 1b. Bot AI movement and fire
     const allTanks = this.playerManager.getAllTanks()
     const botMoves = this.botController.update(
       allTanks,
@@ -144,12 +148,11 @@ export class GameRoom {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
         this.physics.moveTank(bot, dir, allTanks)
+        // Bot fires if enemy is in line of sight
+        if (this.shouldBotFire(bot, allTanks)) {
+          this.bulletManager.tryFire(bot, this.now)
+        }
       }
-    }
-
-    // 2. Auto-fire for all alive tanks
-    for (const tank of this.playerManager.getAliveTanks()) {
-      this.bulletManager.tryFire(tank, this.now)
     }
 
     // 3. Update bullets and check hits
@@ -220,6 +223,34 @@ export class GameRoom {
     // 10. Broadcast state
     const state = this.buildGameState(tickNum, elapsed)
     this.events.onStateUpdate(state, this)
+  }
+
+  private shouldBotFire(bot: Tank, allTanks: Tank[]): boolean {
+    // Bot fires if an enemy is within 10 cells and aligned with bot's direction
+    const FIRE_RANGE = 10
+
+    for (const target of allTanks) {
+      if (!target.isAlive || target.id === bot.id) continue
+
+      const dx = target.position.x - bot.position.x
+      const dy = target.position.y - bot.position.y
+
+      // Check if target is in bot's firing direction
+      if (bot.direction === Direction.Up && dy < 0 && Math.abs(dx) < 1 && Math.abs(dy) <= FIRE_RANGE) {
+        return true
+      }
+      if (bot.direction === Direction.Down && dy > 0 && Math.abs(dx) < 1 && Math.abs(dy) <= FIRE_RANGE) {
+        return true
+      }
+      if (bot.direction === Direction.Left && dx < 0 && Math.abs(dy) < 1 && Math.abs(dx) <= FIRE_RANGE) {
+        return true
+      }
+      if (bot.direction === Direction.Right && dx > 0 && Math.abs(dy) < 1 && Math.abs(dx) <= FIRE_RANGE) {
+        return true
+      }
+    }
+
+    return false
   }
 
   private buildGameState(tick: number, timeElapsed: number): GameState {
