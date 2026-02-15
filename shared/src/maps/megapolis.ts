@@ -40,7 +40,7 @@ export function generateMegapolisMap(): MapDefinition {
       const startX = 5 + bx * (blockSize + streetWidth)
       const startY = 5 + by * (blockSize + streetWidth)
 
-      if (rng() < 0.3) continue
+      if (rng() < 0.15) continue  // Reduced skip chance for more obstacles
 
       const buildingType = rng()
 

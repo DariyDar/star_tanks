@@ -59,8 +59,8 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Brick walls (scattered)
-  for (let i = 0; i < 20; i++) {
+  // Brick walls (scattered) - increased for more combat
+  for (let i = 0; i < 40; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
@@ -72,8 +72,8 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Steel boulders
-  for (let i = 0; i < 10; i++) {
+  // Steel boulders - increased for more cover
+  for (let i = 0; i < 20; i++) {
     const cx = rngInt(rng, 10, MAP_WIDTH - 10)
     const cy = rngInt(rng, 10, MAP_HEIGHT - 10)
     const size = rngInt(rng, 1, 2)
@@ -85,8 +85,8 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Bush patches
-  for (let i = 0; i < 15; i++) {
+  // Bush patches - increased for more concealment
+  for (let i = 0; i < 25; i++) {
     const cx = rngInt(rng, 10, MAP_WIDTH - 10)
     const cy = rngInt(rng, 10, MAP_HEIGHT - 10)
     const r = rngInt(rng, 2, 5)

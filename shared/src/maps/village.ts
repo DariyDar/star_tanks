@@ -50,9 +50,9 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Village houses (brick, small, scattered in clusters)
+  // Village houses (brick, small, scattered in clusters) - more villages
   const villageCenters: Vec2[] = []
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 8; i++) {
     villageCenters.push({
       x: rngInt(rng, 20, MAP_WIDTH - 20),
       y: rngInt(rng, 20, MAP_HEIGHT - 20)
@@ -60,7 +60,7 @@ export function generateVillageMap(): MapDefinition {
   }
 
   for (const center of villageCenters) {
-    const houseCount = rngInt(rng, 2, 4)
+    const houseCount = rngInt(rng, 3, 6)  // More houses per village
 
     for (let h = 0; h < houseCount; h++) {
       const hx = center.x + rngInt(rng, -10, 10)
@@ -111,8 +111,8 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Farm fields (bush rows)
-  for (let i = 0; i < 8; i++) {
+  // Farm fields (bush rows) - more fields
+  for (let i = 0; i < 12; i++) {
     const fx = rngInt(rng, 10, MAP_WIDTH - 30)
     const fy = rngInt(rng, 10, MAP_HEIGHT - 30)
     const rows = rngInt(rng, 2, 5)
@@ -128,8 +128,8 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Forest patches
-  for (let i = 0; i < 6; i++) {
+  // Forest patches - more forests
+  for (let i = 0; i < 10; i++) {
     const cx = rngInt(rng, 15, MAP_WIDTH - 15)
     const cy = rngInt(rng, 15, MAP_HEIGHT - 15)
     const r = rngInt(rng, 3, 6)
@@ -143,8 +143,8 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Scattered brick walls
-  for (let i = 0; i < 10; i++) {
+  // Scattered brick walls - more destructible walls
+  for (let i = 0; i < 20; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
