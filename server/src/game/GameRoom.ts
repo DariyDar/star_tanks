@@ -118,7 +118,7 @@ export class GameRoom {
     this.now = Date.now()
     const elapsed = this.now - this.startTime
 
-    // 1. Process player inputs and fire
+    // 1. Process player inputs
     for (const tank of this.playerManager.getAllTanks()) {
       if (tank.isBot) continue
       const input = this.playerManager.consumeInput(tank.id)
@@ -127,14 +127,10 @@ export class GameRoom {
         if (input.aimDirection) {
           tank.direction = input.aimDirection
         }
-        // Fire if player pressed fire button
-        if (input.fire) {
-          this.bulletManager.tryFire(tank, this.now)
-        }
       }
     }
 
-    // 1b. Bot AI movement and fire
+    // 1b. Bot AI movement
     const allTanks = this.playerManager.getAllTanks()
     const botMoves = this.botController.update(
       allTanks,
@@ -148,11 +144,12 @@ export class GameRoom {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
         this.physics.moveTank(bot, dir, allTanks)
-        // Bot fires if enemy is in line of sight
-        if (this.shouldBotFire(bot, allTanks)) {
-          this.bulletManager.tryFire(bot, this.now)
-        }
       }
+    }
+
+    // 2. Auto-fire for all alive tanks
+    for (const tank of this.playerManager.getAliveTanks()) {
+      this.bulletManager.tryFire(tank, this.now)
     }
 
     // 3. Update bullets and check hits
