@@ -36,8 +36,8 @@ export class PlayerManager {
 
     if (isBoss) {
       initialMaxHp = 500  // Boss has 500 HP
-      tankRadius = 1.35   // Boss is 3x larger
-      speed = TANK_SPEED * 0.995  // 0.5% slower than player
+      tankRadius = 1.35   // Boss is 3x larger (FIXED - doesn't grow with stars)
+      speed = TANK_SPEED * 1.1  // 10% faster than player
       tankColor = '#8B0000'  // Dark red for boss
     }
 
@@ -127,19 +127,23 @@ export class PlayerManager {
       const killer = this.tanks.get(killerId)
       if (killer) {
         killer.kills++
-        killer.stars += droppedStars
-        // Bonus: +1 star for killing a bot
-        if (tank.isBot) {
-          killer.stars += 1
-        }
-        // Update tank size and max HP based on new star count
-        killer.tankRadius = getTankRadius(killer.stars)
-        const newMaxHp = getMaxHp(killer.stars, killer.isBot)
-        if (newMaxHp > killer.maxHp) {
-          // Increase both maxHp and current hp when reaching new tier
-          const hpIncrease = newMaxHp - killer.maxHp
-          killer.maxHp = newMaxHp
-          killer.hp = Math.min(killer.hp + hpIncrease, killer.maxHp)
+
+        // Boss doesn't collect stars or grow
+        if (killer.id !== 'boss_1') {
+          killer.stars += droppedStars
+          // Bonus: +1 star for killing a bot
+          if (tank.isBot) {
+            killer.stars += 1
+          }
+          // Update tank size and max HP based on new star count
+          killer.tankRadius = getTankRadius(killer.stars)
+          const newMaxHp = getMaxHp(killer.stars, killer.isBot)
+          if (newMaxHp > killer.maxHp) {
+            // Increase both maxHp and current hp when reaching new tier
+            const hpIncrease = newMaxHp - killer.maxHp
+            killer.maxHp = newMaxHp
+            killer.hp = Math.min(killer.hp + hpIncrease, killer.maxHp)
+          }
         }
       }
     }

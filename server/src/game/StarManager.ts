@@ -29,7 +29,7 @@ export class StarManager {
 
       for (const tank of tanks) {
         if (!tank.isAlive) continue
-        if (tank.isBot) continue  // Боты не собирают звёзды
+        if (tank.isBot) continue  // Боты не собирают звёзды (включая босса)
 
         // Радиус притяжения (по умолчанию 1, может быть увеличен бонусом)
         const magnetRadius = (tank as any).magnetRadius ?? 1
@@ -42,8 +42,10 @@ export class StarManager {
           star.active = false
           star.respawnAt = now + STAR_RESPAWN_TIME
           tank.stars += 1
-          // Update tank size based on new star count
-          tank.tankRadius = getTankRadius(tank.stars)
+          // Update tank size based on new star count (but not for boss)
+          if (tank.id !== 'boss_1') {
+            tank.tankRadius = getTankRadius(tank.stars)
+          }
           break
         }
       }
