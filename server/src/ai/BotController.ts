@@ -81,9 +81,9 @@ export class BotController {
       return this.moveToward(tank, data, { x: zone.centerX, y: zone.centerY }, now)
     }
 
-    // Priority 2: Chase nearby enemy
+    // Priority 2: Chase nearby PLAYERS (not other bots)
     const enemies = tanks.filter(t =>
-      t.isAlive && t.id !== tank.id &&
+      t.isAlive && t.id !== tank.id && !t.isBot &&  // Only chase players, not bots
       distance(tank.position, t.position) < CHASE_RANGE
     )
     if (enemies.length > 0) {
@@ -127,10 +127,11 @@ export class BotController {
   }
 
   private patrol(tank: Tank, data: BotData, now: number): Direction | null {
-    // Set a random target if no path
-    if (data.path.length === 0 || now - data.pathRecalcAt > 3000) {
-      const targetX = Math.floor(Math.random() * (this.mapWidth - 20)) + 10
-      const targetY = Math.floor(Math.random() * (this.mapHeight - 20)) + 10
+    // Set a random target if no path - spread out to avoid clustering
+    if (data.path.length === 0 || now - data.pathRecalcAt > 2000) {  // More frequent retargeting
+      // Use wider spread to prevent bots from clustering
+      const targetX = Math.floor(Math.random() * (this.mapWidth - 40)) + 20
+      const targetY = Math.floor(Math.random() * (this.mapHeight - 40)) + 20
       data.path = findPath(tank.position, { x: targetX, y: targetY }, this.grid, this.mapWidth, this.mapHeight)
       data.pathRecalcAt = now
     }
