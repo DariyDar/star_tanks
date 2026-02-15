@@ -1,5 +1,5 @@
 import type { Vec2 } from '@shared/types.js'
-import { CELL_SIZE, VIEWPORT_CELLS } from '@shared/constants.js'
+import { VIEWPORT_CELLS } from '@shared/constants.js'
 import { clamp } from '@shared/math.js'
 
 export class Camera {
@@ -7,6 +7,7 @@ export class Camera {
   y = 0
   private mapWidth: number
   private mapHeight: number
+  private initialized = false
 
   constructor(mapWidth: number, mapHeight: number) {
     this.mapWidth = mapWidth
@@ -14,9 +15,21 @@ export class Camera {
   }
 
   follow(target: Vec2): void {
-    const viewportHalf = Math.floor(VIEWPORT_CELLS / 2)
-    this.x = clamp(target.x - viewportHalf, 0, this.mapWidth - VIEWPORT_CELLS)
-    this.y = clamp(target.y - viewportHalf, 0, this.mapHeight - VIEWPORT_CELLS)
+    const viewportHalf = VIEWPORT_CELLS / 2
+    const targetX = clamp(target.x - viewportHalf, 0, this.mapWidth - VIEWPORT_CELLS)
+    const targetY = clamp(target.y - viewportHalf, 0, this.mapHeight - VIEWPORT_CELLS)
+
+    if (!this.initialized) {
+      this.x = targetX
+      this.y = targetY
+      this.initialized = true
+      return
+    }
+
+    // Smooth camera follow — lerp toward target
+    const smoothing = 0.15
+    this.x += (targetX - this.x) * smoothing
+    this.y += (targetY - this.y) * smoothing
   }
 
   worldToScreen(wx: number, wy: number, cellPx: number): { sx: number; sy: number } {

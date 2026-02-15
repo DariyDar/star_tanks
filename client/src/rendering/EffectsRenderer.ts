@@ -8,18 +8,57 @@ interface Explosion {
   duration: number
 }
 
+interface BulletImpact {
+  x: number
+  y: number
+  startTime: number
+  duration: number
+}
+
 export class EffectsRenderer {
   private explosions: Explosion[] = []
+  private bulletImpacts: BulletImpact[] = []
   private fadeStartTime = 0
   private fadeColor: 'white' | 'black' | null = null
   private fadeDuration = PORTAL_EXIT_FADE_DURATION
+
+  // Screen shake
+  private shakeIntensity = 0
+  private shakeDecay = 0.88
+  shakeOffsetX = 0
+  shakeOffsetY = 0
+
+  // Recoil (local player tank)
+  private recoilAngle = 0
+  private recoilMagnitude = 0
+  recoilOffsetX = 0
+  recoilOffsetY = 0
 
   addExplosion(x: number, y: number): void {
     this.explosions.push({
       x, y,
       startTime: Date.now(),
-      duration: 500
+      duration: 600
     })
+    this.addScreenShake(6)
+  }
+
+  addBulletImpact(x: number, y: number): void {
+    this.bulletImpacts.push({
+      x, y,
+      startTime: Date.now(),
+      duration: 300
+    })
+    this.addScreenShake(2)
+  }
+
+  addScreenShake(intensity: number): void {
+    this.shakeIntensity = Math.max(this.shakeIntensity, intensity)
+  }
+
+  triggerRecoil(angle: number): void {
+    this.recoilAngle = angle
+    this.recoilMagnitude = 0.12
   }
 
   startFade(color: 'white' | 'black'): void {
@@ -33,6 +72,28 @@ export class EffectsRenderer {
 
   get fadeComplete(): boolean {
     return this.fadeColor !== null && (Date.now() - this.fadeStartTime) >= this.fadeDuration
+  }
+
+  updateShake(): void {
+    if (this.shakeIntensity > 0.1) {
+      this.shakeOffsetX = (Math.random() - 0.5) * 2 * this.shakeIntensity
+      this.shakeOffsetY = (Math.random() - 0.5) * 2 * this.shakeIntensity
+      this.shakeIntensity *= this.shakeDecay
+    } else {
+      this.shakeIntensity = 0
+      this.shakeOffsetX = 0
+      this.shakeOffsetY = 0
+    }
+
+    if (this.recoilMagnitude > 0.005) {
+      this.recoilOffsetX = Math.sin(this.recoilAngle) * this.recoilMagnitude
+      this.recoilOffsetY = -Math.cos(this.recoilAngle) * this.recoilMagnitude
+      this.recoilMagnitude *= 0.75
+    } else {
+      this.recoilMagnitude = 0
+      this.recoilOffsetX = 0
+      this.recoilOffsetY = 0
+    }
   }
 
   renderExplosions(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
@@ -49,7 +110,6 @@ export class EffectsRenderer {
       const r = maxR * t
       const alpha = 1 - t
 
-      // Outer glow
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
       grad.addColorStop(0, `rgba(255, 200, 50, ${alpha})`)
       grad.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.6})`)
@@ -59,6 +119,48 @@ export class EffectsRenderer {
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.fill()
+    }
+  }
+
+  renderBulletImpacts(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.bulletImpacts = this.bulletImpacts.filter(e => now - e.startTime < e.duration)
+
+    for (const impact of this.bulletImpacts) {
+      const t = (now - impact.startTime) / impact.duration
+      const { sx, sy } = camera.worldToScreen(impact.x, impact.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      // Flash
+      const flashR = cellPx * 0.4 * (1 + t)
+      const flashAlpha = (1 - t) * 0.8
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashR)
+      grad.addColorStop(0, `rgba(255, 220, 100, ${flashAlpha})`)
+      grad.addColorStop(0.4, `rgba(255, 140, 20, ${flashAlpha * 0.5})`)
+      grad.addColorStop(1, `rgba(255, 80, 0, 0)`)
+
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(cx, cy, flashR, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Sparks
+      if (t < 0.6) {
+        const sparkCount = 6
+        const sparkAlpha = (1 - t / 0.6) * 0.9
+        ctx.fillStyle = `rgba(255, 200, 50, ${sparkAlpha})`
+        for (let i = 0; i < sparkCount; i++) {
+          const angle = (i / sparkCount) * Math.PI * 2 + t * 4
+          const sparkDist = cellPx * 0.15 + cellPx * 0.5 * t
+          const sparkX = cx + Math.cos(angle) * sparkDist
+          const sparkY = cy + Math.sin(angle) * sparkDist
+          const sparkR = 2 * (1 - t / 0.6)
+          ctx.beginPath()
+          ctx.arc(sparkX, sparkY, sparkR, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
     }
   }
 
@@ -76,7 +178,6 @@ export class EffectsRenderer {
       const cx = sx + cellPx / 2
       const cy = sy + cellPx / 2
 
-      // Spinning portal effect
       const angle = now / 500
       const pulse = 0.8 + Math.sin(now / 300) * 0.2
       const r = cellPx * 0.45 * pulse
@@ -85,14 +186,12 @@ export class EffectsRenderer {
       ctx.translate(cx, cy)
       ctx.rotate(angle)
 
-      // Outer ring
       ctx.strokeStyle = '#00FFFF'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.arc(0, 0, r, 0, Math.PI * 2)
       ctx.stroke()
 
-      // Inner glow
       const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
       grad.addColorStop(0, 'rgba(0, 255, 255, 0.4)')
       grad.addColorStop(1, 'rgba(0, 100, 255, 0.1)')
@@ -101,7 +200,6 @@ export class EffectsRenderer {
       ctx.arc(0, 0, r, 0, Math.PI * 2)
       ctx.fill()
 
-      // Spiral arms
       ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)'
       ctx.lineWidth = 1
       for (let arm = 0; arm < 3; arm++) {
@@ -152,7 +250,6 @@ export class EffectsRenderer {
     ctx.translate(arrowX, arrowY)
     ctx.rotate(angle)
 
-    // Arrow
     ctx.fillStyle = '#00FFFF'
     ctx.beginPath()
     ctx.moveTo(12, 0)
@@ -166,6 +263,13 @@ export class EffectsRenderer {
 
   reset(): void {
     this.explosions = []
+    this.bulletImpacts = []
     this.fadeColor = null
+    this.shakeIntensity = 0
+    this.shakeOffsetX = 0
+    this.shakeOffsetY = 0
+    this.recoilMagnitude = 0
+    this.recoilOffsetX = 0
+    this.recoilOffsetY = 0
   }
 }

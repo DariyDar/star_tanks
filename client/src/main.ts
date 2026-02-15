@@ -1,3 +1,4 @@
+import type { Bullet } from '@shared/types.js'
 import { GameClient } from './game/GameClient.js'
 import { InputManager } from './game/InputManager.js'
 import { Renderer } from './rendering/Renderer.js'
@@ -29,6 +30,10 @@ let inputSendTimer = 0
 let accountStars: number | null = null
 let lastError: string | null = null
 const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
+
+// Bullet impact tracking
+let prevBullets: Map<string, Bullet> = new Map()
+let wasFiring = false
 
 function joinGame(name: string, mapId: string, color: string) {
   lastPlayerName = name
@@ -166,9 +171,26 @@ function gameLoop(now: number) {
       })
     }
 
+    // Recoil on fire start
+    const firing = input.isFiring()
+    if (firing && !wasFiring) {
+      renderer.effects.triggerRecoil(aimAngle)
+    }
+    wasFiring = firing
+
     // Get interpolated state from server
     const state = stateBuffer.getInterpolatedState()
     if (state) {
+      // Detect bullet impacts (bullets that vanished = hit something)
+      const currentBullets = new Map(state.bullets.map(b => [b.id, b]))
+      for (const [id, prev] of prevBullets) {
+        if (!currentBullets.has(id)) {
+          // Bullet disappeared — add impact effect at last known position
+          renderer.effects.addBulletImpact(prev.position.x, prev.position.y)
+        }
+      }
+      prevBullets = currentBullets
+
       client.updateState(state)
     }
   }
