@@ -2,7 +2,7 @@ import {
   type Tank, type Vec2, type PlayerInput, Direction, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
-  TANK_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS
+  TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS
 } from '@tank-br/shared/constants.js'
 
 export class PlayerManager {
@@ -25,8 +25,8 @@ export class PlayerManager {
       name,
       position: { x: spawn.x, y: spawn.y },
       direction: Direction.Up,
-      hp: TANK_HP,
-      maxHp: TANK_HP,
+      hp: isBot ? BOT_HP : TANK_HP,
+      maxHp: isBot ? BOT_HP : TANK_HP,
       stars: 0,
       kills: 0,
       isBot,
@@ -106,7 +106,7 @@ export class PlayerManager {
 
     tank.position = { x: spawn.x, y: spawn.y }
     tank.direction = Direction.Up
-    tank.hp = TANK_HP
+    tank.hp = tank.isBot ? BOT_HP : TANK_HP
     tank.isAlive = true
     tank.activePowerUp = null
     tank.powerUpEndTime = 0
