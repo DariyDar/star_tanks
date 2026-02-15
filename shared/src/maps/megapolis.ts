@@ -131,7 +131,7 @@ export function generateMegapolisMap(): MapDefinition {
     id: 'megapolis',
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
-    botCount: 5,
+    botCount: 0,
     obstacles,
     spawnPoints,
     starPositions

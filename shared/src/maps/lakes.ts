@@ -108,7 +108,7 @@ export function generateLakesMap(): MapDefinition {
     id: 'lakes',
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
-    botCount: 10,
+    botCount: 0,
     obstacles,
     spawnPoints,
     starPositions
