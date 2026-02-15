@@ -7,7 +7,7 @@ import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 let powerUpIdCounter = 0
 
-const POWER_UP_TYPES = [PowerUpType.RapidFire, PowerUpType.Speed, PowerUpType.Shield]
+const POWER_UP_TYPES = [PowerUpType.RapidFire, PowerUpType.Speed, PowerUpType.Shield, PowerUpType.Magnet]
 
 export class PowerUpManager {
   private powerUps: PowerUp[] = []
@@ -34,10 +34,15 @@ export class PowerUpManager {
       const pu = this.powerUps[i]
       for (const tank of tanks) {
         if (!tank.isAlive) continue
-        if (
-          Math.round(tank.position.x) === pu.position.x &&
-          Math.round(tank.position.y) === pu.position.y
-        ) {
+        if (tank.isBot) continue  // Боты не собирают бонусы
+
+        // Радиус притяжения
+        const magnetRadius = tank.magnetRadius ?? 1
+        const dx = tank.position.x - pu.position.x
+        const dy = tank.position.y - pu.position.y
+        const distSq = dx * dx + dy * dy
+
+        if (distSq <= magnetRadius * magnetRadius) {
           this.applyPowerUp(tank, pu, now)
           this.powerUps.splice(i, 1)
           break
@@ -70,6 +75,9 @@ export class PowerUpManager {
 
     if (powerUp.type === PowerUpType.Speed) {
       tank.speed *= SPEED_MULTIPLIER
+    } else if (powerUp.type === PowerUpType.Magnet) {
+      // Увеличиваем радиус притяжения до максимума 4
+      tank.magnetRadius = Math.min(tank.magnetRadius + 1, 4)
     }
   }
 

@@ -15,7 +15,8 @@ export enum ObstacleType {
 export enum PowerUpType {
   RapidFire = 'rapidFire',
   Speed = 'speed',
-  Shield = 'shield'
+  Shield = 'shield',
+  Magnet = 'magnet'
 }
 
 export enum GamePhase {
@@ -48,6 +49,7 @@ export interface Tank {
   fireCooldown: number
   speed: number
   color: string
+  magnetRadius: number  // Радиус притяжения звёзд/бонусов (1-4)
 }
 
 export interface Bullet {

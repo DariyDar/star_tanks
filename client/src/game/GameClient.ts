@@ -89,14 +89,21 @@ export class GameClient {
 
     const myTank = this.getMyTank()
     if (myTank) {
-      // Reconcile: snap predicted position toward server position
+      // Reconcile: blend predicted position toward server position
       if (this.predictedPos) {
         const dx = myTank.position.x - this.predictedPos.x
         const dy = myTank.position.y - this.predictedPos.y
         const dist = Math.sqrt(dx * dx + dy * dy)
-        // If too far off, snap to server
-        if (dist > 3) {
+
+        // If too far off, snap immediately to server position
+        if (dist > 2) {
           this.predictedPos = { ...myTank.position }
+        }
+        // If small difference, smoothly blend towards server position
+        else if (dist > 0.1) {
+          const blendFactor = 0.3  // Blend 30% towards server position
+          this.predictedPos.x += dx * blendFactor
+          this.predictedPos.y += dy * blendFactor
         }
       } else {
         this.predictedPos = { ...myTank.position }

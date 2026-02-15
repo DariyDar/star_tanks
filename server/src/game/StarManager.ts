@@ -29,10 +29,16 @@ export class StarManager {
 
       for (const tank of tanks) {
         if (!tank.isAlive) continue
-        if (
-          Math.round(tank.position.x) === star.position.x &&
-          Math.round(tank.position.y) === star.position.y
-        ) {
+        if (tank.isBot) continue  // Боты не собирают звёзды
+
+        // Радиус притяжения (по умолчанию 1, может быть увеличен бонусом)
+        const magnetRadius = (tank as any).magnetRadius ?? 1
+        const dx = tank.position.x - star.position.x
+        const dy = tank.position.y - star.position.y
+        const distSq = dx * dx + dy * dy
+
+        // Проверка попадания в радиус притяжения
+        if (distSq <= magnetRadius * magnetRadius) {
           star.active = false
           star.respawnAt = now + STAR_RESPAWN_TIME
           tank.stars += 1

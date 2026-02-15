@@ -280,7 +280,8 @@ export class BinaryDecoder {
       lastFireTime: 0, // Not encoded, would be computed client-side
       fireCooldown,
       speed: 0, // Not encoded, use default from game config
-      color
+      color,
+      magnetRadius: 1 // Default magnet radius, would need to be encoded in full protocol
     }
   }
 

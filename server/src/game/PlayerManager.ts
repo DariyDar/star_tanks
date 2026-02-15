@@ -36,7 +36,8 @@ export class PlayerManager {
       lastFireTime: 0,
       fireCooldown: 0,
       speed: TANK_SPEED,
-      color: TANK_COLORS[this.colorIndex % TANK_COLORS.length]
+      color: TANK_COLORS[this.colorIndex % TANK_COLORS.length],
+      magnetRadius: 1  // Базовый радиус притяжения
     }
     this.colorIndex++
 
