@@ -16,7 +16,8 @@ export enum PowerUpType {
   RapidFire = 'rapidFire',
   Speed = 'speed',
   Shield = 'shield',
-  Magnet = 'magnet'
+  Magnet = 'magnet',
+  Heal = 'heal'
 }
 
 export enum GamePhase {

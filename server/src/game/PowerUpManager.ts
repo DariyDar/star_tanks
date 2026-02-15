@@ -7,7 +7,7 @@ import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 let powerUpIdCounter = 0
 
-const POWER_UP_TYPES = [PowerUpType.RapidFire, PowerUpType.Speed, PowerUpType.Shield, PowerUpType.Magnet]
+const POWER_UP_TYPES = [PowerUpType.RapidFire, PowerUpType.Speed, PowerUpType.Shield, PowerUpType.Magnet, PowerUpType.Heal]
 
 export class PowerUpManager {
   private powerUps: PowerUp[] = []
@@ -70,6 +70,12 @@ export class PowerUpManager {
   }
 
   private applyPowerUp(tank: Tank, powerUp: PowerUp, now: number): void {
+    if (powerUp.type === PowerUpType.Heal) {
+      // Heal is instant, not a timed powerup
+      tank.hp = Math.min(tank.hp + 2, tank.maxHp)
+      return
+    }
+
     tank.activePowerUp = powerUp.type
     tank.powerUpEndTime = now + POWERUP_DURATION
 
