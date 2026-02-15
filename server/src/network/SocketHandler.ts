@@ -41,20 +41,20 @@ export class SocketHandler {
   }
 
   private handleJoin(socket: Socket, payload: ClientJoinPayload): void {
-    const { playerName, mapId } = payload
+    const { playerName, mapId, color } = payload
 
     if (!playerName || !mapId) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Invalid join payload' })
       return
     }
 
-    const result = this.roomManager.joinRoom(socket.id, playerName, mapId)
+    const result = this.roomManager.joinRoom(socket.id, playerName, mapId, color)
     if (!result) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 2 stars)' })
       return
     }
 
-    const { room, accountStars } = result
+    const { room, accountStars, playerColor } = result
     socket.join(room.roomId)
 
     const mapData = compressMap(room.mapDefinition)

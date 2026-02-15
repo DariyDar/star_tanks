@@ -16,9 +16,18 @@ export class PlayerManager {
     this.spawnPoints = spawnPoints
   }
 
-  addPlayer(id: string, name: string, isBot: boolean): Tank {
+  addPlayer(id: string, name: string, isBot: boolean, color?: string): Tank {
     const spawn = this.spawnPoints[this.spawnIndex % this.spawnPoints.length]
     this.spawnIndex++
+
+    // Use provided color for players, auto-assign for bots
+    let tankColor: string
+    if (color && !isBot) {
+      tankColor = color
+    } else {
+      tankColor = TANK_COLORS[this.colorIndex % TANK_COLORS.length]
+      this.colorIndex++
+    }
 
     const tank: Tank = {
       id,
@@ -36,10 +45,9 @@ export class PlayerManager {
       lastFireTime: 0,
       fireCooldown: 0,
       speed: isBot ? BOT_SPEED : TANK_SPEED,
-      color: TANK_COLORS[this.colorIndex % TANK_COLORS.length],
+      color: tankColor,
       magnetRadius: 1  // Базовый радиус притяжения
     }
-    this.colorIndex++
 
     this.tanks.set(id, tank)
     this.inputQueues.set(id, [])

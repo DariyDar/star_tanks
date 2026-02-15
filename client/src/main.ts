@@ -27,7 +27,7 @@ let accountStars: number | null = null
 let lastError: string | null = null
 const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 
-function joinGame(name: string, mapId: string) {
+function joinGame(name: string, mapId: string, color: string) {
   lastPlayerName = name
   lastMapId = mapId
   stateBuffer.clear()
@@ -35,14 +35,14 @@ function joinGame(name: string, mapId: string) {
   joined = false
 
   if (socket.connected) {
-    socket.join(name, mapId)
+    socket.join(name, mapId, color)
   }
 }
 
 function showLobby() {
-  lobby.show((name, mapId) => {
+  lobby.show((name, mapId, color) => {
     lastError = null  // Clear error when attempting to join
-    joinGame(name, mapId)
+    joinGame(name, mapId, color)
   }, accountStars ?? undefined, lastError ?? undefined)
 }
 

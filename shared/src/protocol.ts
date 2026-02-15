@@ -7,6 +7,7 @@ import type {
 export interface ClientJoinPayload {
   playerName: string
   mapId: MapId
+  color?: string  // Player's chosen tank color
 }
 
 export interface ClientInputPayload extends PlayerInput {}

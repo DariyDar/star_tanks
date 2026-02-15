@@ -68,11 +68,11 @@ export class GameRoom {
     this.gameLoop = new GameLoop((tick, deltaMs) => this.tick(tick, deltaMs))
   }
 
-  addPlayer(playerId: string, name: string): boolean {
+  addPlayer(playerId: string, name: string, color?: string): boolean {
     if (this.playerManager.totalCount >= MAX_PLAYERS) return false
     if (this.phase === GamePhase.GameOver) return false
 
-    this.playerManager.addPlayer(playerId, name, false)
+    this.playerManager.addPlayer(playerId, name, false, color)
     try {
       this.indexMap.assign(playerId)
     } catch (e) {

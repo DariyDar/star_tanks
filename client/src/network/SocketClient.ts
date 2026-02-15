@@ -95,8 +95,12 @@ export class SocketClient {
     this.socket.connect()
   }
 
-  join(playerName: string, mapId: string): void {
-    const payload: ClientJoinPayload = { playerName, mapId: mapId as ClientJoinPayload['mapId'] }
+  join(playerName: string, mapId: string, color?: string): void {
+    const payload: ClientJoinPayload = {
+      playerName,
+      mapId: mapId as ClientJoinPayload['mapId'],
+      color
+    }
     this.socket.emit(CLIENT_EVENTS.JOIN, payload)
   }
 

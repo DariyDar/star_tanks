@@ -1,11 +1,13 @@
 import { MAP_INFO } from '@shared/maps/index.js'
+import { TANK_COLORS } from '@shared/constants.js'
 import type { MapId } from '@shared/types.js'
 
 export class LobbyScreen {
   private visible = true
   private playerName = ''
   private selectedMap: MapId = 'lakes'
-  private onJoin: ((name: string, mapId: MapId) => void) | null = null
+  private selectedColor = TANK_COLORS[0]
+  private onJoin: ((name: string, mapId: MapId, color: string) => void) | null = null
   private nameInput: HTMLInputElement | null = null
   private container: HTMLDivElement | null = null
   private accountStars: number | null = null
@@ -13,7 +15,7 @@ export class LobbyScreen {
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
-  show(onJoin: (name: string, mapId: MapId) => void, accountStars?: number, errorMessage?: string): void {
+  show(onJoin: (name: string, mapId: MapId, color: string) => void, accountStars?: number, errorMessage?: string): void {
     this.visible = true
     this.onJoin = onJoin
     this.accountStars = accountStars ?? null
@@ -96,6 +98,36 @@ export class LobbyScreen {
     `
     this.container.appendChild(this.nameInput)
 
+    // Color selection title
+    const colorTitle = document.createElement('div')
+    colorTitle.textContent = 'Choose Tank Color:'
+    colorTitle.style.cssText = 'font-size: 18px; margin-bottom: 10px; color: #AAA;'
+    this.container.appendChild(colorTitle)
+
+    // Color picker
+    const colorGrid = document.createElement('div')
+    colorGrid.style.cssText = 'display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; max-width: 400px;'
+
+    for (const color of TANK_COLORS.slice(0, 12)) {  // Show first 12 colors
+      const colorBtn = document.createElement('div')
+      colorBtn.style.cssText = `
+        width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+        background: ${color}; border: 3px solid ${color === this.selectedColor ? '#FFD700' : '#555'};
+        transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `
+
+      colorBtn.addEventListener('click', () => {
+        this.selectedColor = color
+        // Update all color buttons
+        colorGrid.querySelectorAll('div').forEach((btn, i) => {
+          btn.style.borderColor = TANK_COLORS[i] === this.selectedColor ? '#FFD700' : '#555'
+        })
+      })
+
+      colorGrid.appendChild(colorBtn)
+    }
+    this.container.appendChild(colorGrid)
+
     // Map selection title
     const mapTitle = document.createElement('div')
     mapTitle.textContent = 'Select Map:'
@@ -152,7 +184,7 @@ export class LobbyScreen {
     playBtn.addEventListener('click', () => {
       this.playerName = this.nameInput?.value || 'Player'
       this.hide()
-      this.onJoin?.(this.playerName, this.selectedMap)
+      this.onJoin?.(this.playerName, this.selectedMap, this.selectedColor)
     })
     this.container.appendChild(playBtn)
 

@@ -58,9 +58,9 @@ export class RoomManager {
     return room
   }
 
-  joinRoom(playerId: string, playerName: string, mapId: MapId): { room: GameRoom; accountStars: number } | null {
+  joinRoom(playerId: string, playerName: string, mapId: MapId, color?: string): { room: GameRoom; accountStars: number; playerColor: string } | null {
     // Get or create player account
-    const account = this.accountManager.getOrCreateAccount(playerId, playerName)
+    const account = this.accountManager.getOrCreateAccount(playerId, playerName, color)
 
     // Check if player can afford entry
     if (!this.accountManager.canAffordEntry(playerId)) {
@@ -73,7 +73,7 @@ export class RoomManager {
     }
 
     const room = this.findOrCreateRoom(mapId)
-    const success = room.addPlayer(playerId, playerName)
+    const success = room.addPlayer(playerId, playerName, account.color)  // Pass color to room
     if (!success) {
       // Refund entry fee if couldn't join room
       this.accountManager.addStarsFromPortal(playerId, 2)
@@ -81,7 +81,7 @@ export class RoomManager {
     }
 
     this.playerRooms.set(playerId, room.roomId)
-    return { room, accountStars: account.totalStars }
+    return { room, accountStars: account.totalStars, playerColor: account.color }
   }
 
   leaveRoom(playerId: string): void {
