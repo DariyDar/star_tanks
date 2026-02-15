@@ -16,7 +16,7 @@ export class PlayerManager {
     this.spawnPoints = spawnPoints
   }
 
-  addPlayer(id: string, name: string, isBot: boolean, color?: string): Tank {
+  addPlayer(id: string, name: string, isBot: boolean, color?: string, isBoss: boolean = false): Tank {
     const spawn = this.spawnPoints[this.spawnIndex % this.spawnPoints.length]
     this.spawnIndex++
 
@@ -29,7 +29,18 @@ export class PlayerManager {
       this.colorIndex++
     }
 
-    const initialMaxHp = getMaxHp(0, isBot)
+    // Boss settings
+    let initialMaxHp = getMaxHp(0, isBot)
+    let tankRadius = getTankRadius(0)
+    let speed = isBot ? BOT_SPEED : TANK_SPEED
+
+    if (isBoss) {
+      initialMaxHp = 500  // Boss has 500 HP
+      tankRadius = 1.35   // Boss is 3x larger
+      speed = TANK_SPEED * 0.995  // 0.5% slower than player
+      tankColor = '#8B0000'  // Dark red for boss
+    }
+
     const tank: Tank = {
       id,
       name,
@@ -46,10 +57,10 @@ export class PlayerManager {
       powerUpEndTime: 0,
       lastFireTime: 0,
       fireCooldown: 0,
-      speed: isBot ? BOT_SPEED : TANK_SPEED,
+      speed: speed,
       color: tankColor,
       magnetRadius: 1,  // Базовый радиус притяжения
-      tankRadius: getTankRadius(0),  // Базовый радиус танка
+      tankRadius: tankRadius,  // Радиус танка
       lastDamageTime: 0,  // Время последнего урона
       quicksandSlowEndTime: 0,  // Время окончания замедления
       inBush: false  // Не в кустах при спавне
