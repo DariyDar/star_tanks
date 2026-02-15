@@ -2,7 +2,7 @@ import {
   type Tank, type Vec2, type PlayerInput, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
-  TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS, getTankRadius
+  TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS, getTankRadius, getMaxHp
 } from '@tank-br/shared/constants.js'
 
 export class PlayerManager {
@@ -29,14 +29,15 @@ export class PlayerManager {
       this.colorIndex++
     }
 
+    const initialMaxHp = getMaxHp(0, isBot)
     const tank: Tank = {
       id,
       name,
       position: { x: spawn.x, y: spawn.y },
       hullAngle: 0,
       turretAngle: 0,
-      hp: isBot ? BOT_HP : TANK_HP,
-      maxHp: isBot ? BOT_HP : TANK_HP,
+      hp: initialMaxHp,
+      maxHp: initialMaxHp,
       stars: 0,
       kills: 0,
       isBot,
@@ -117,8 +118,15 @@ export class PlayerManager {
         if (tank.isBot) {
           killer.stars += 1
         }
-        // Update tank size based on new star count
+        // Update tank size and max HP based on new star count
         killer.tankRadius = getTankRadius(killer.stars)
+        const newMaxHp = getMaxHp(killer.stars, killer.isBot)
+        if (newMaxHp > killer.maxHp) {
+          // Increase both maxHp and current hp when reaching new tier
+          const hpIncrease = newMaxHp - killer.maxHp
+          killer.maxHp = newMaxHp
+          killer.hp = Math.min(killer.hp + hpIncrease, killer.maxHp)
+        }
       }
     }
 
@@ -135,7 +143,8 @@ export class PlayerManager {
     tank.position = { x: spawn.x, y: spawn.y }
     tank.hullAngle = 0
     tank.turretAngle = 0
-    tank.hp = tank.isBot ? BOT_HP : TANK_HP
+    tank.maxHp = getMaxHp(tank.stars, tank.isBot)
+    tank.hp = tank.maxHp
     tank.isAlive = true
     tank.activePowerUp = null
     tank.powerUpEndTime = 0

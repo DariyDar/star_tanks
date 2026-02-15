@@ -18,11 +18,19 @@ export const FIRE_COOLDOWN_RAPID = 500
 // Collision
 export const TANK_RADIUS = 0.45  // Base tank radius
 export const TANK_SCALE_PER_10_STARS = 0.05  // Increase radius by 0.05 every 10 stars
+export const HP_PER_10_STARS = 1  // Increase max HP by 1 every 10 stars
 
 // Calculate tank radius based on star count
 export function getTankRadius(stars: number): number {
   const tierBonus = Math.floor(stars / 10) * TANK_SCALE_PER_10_STARS
   return TANK_RADIUS + tierBonus
+}
+
+// Calculate max HP based on star count
+export function getMaxHp(stars: number, isBot: boolean): number {
+  const baseHp = isBot ? BOT_HP : TANK_HP
+  const tierBonus = Math.floor(stars / 10) * HP_PER_10_STARS
+  return baseHp + tierBonus
 }
 
 // Bullet
@@ -34,10 +42,11 @@ export const STARS_PER_MAP = 30
 export const STAR_RESPAWN_TIME = 30000
 
 // Power-ups
-export const POWERUP_SPAWN_INTERVAL = 20000
+export const POWERUP_SPAWN_INTERVAL = 10000  // Spawn every 10 seconds (was 20)
 export const POWERUP_DURATION = 10000  // Длительность эффекта бонуса на танке
 export const POWERUP_LIFETIME = 30000  // Бонус лежит на карте 30 секунд
 export const SPEED_MULTIPLIER = 1.5
+export const MAX_POWERUPS = 10  // Maximum powerups on map at once (was 5)
 
 // Battle Royale
 export const ZONE_SHRINK_START = 180000

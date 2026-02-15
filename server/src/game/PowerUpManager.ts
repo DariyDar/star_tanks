@@ -1,13 +1,22 @@
 import { type PowerUp, type Tank, type Vec2, PowerUpType } from '@tank-br/shared/types.js'
 import {
   POWERUP_SPAWN_INTERVAL, POWERUP_DURATION, POWERUP_LIFETIME, SPEED_MULTIPLIER,
-  FIRE_COOLDOWN_RAPID
+  FIRE_COOLDOWN_RAPID, MAX_POWERUPS
 } from '@tank-br/shared/constants.js'
 import { rngInt, createRng } from '@tank-br/shared/math.js'
 
 let powerUpIdCounter = 0
 
-const POWER_UP_TYPES = [PowerUpType.RapidFire, PowerUpType.Speed, PowerUpType.Shield, PowerUpType.Magnet, PowerUpType.Heal]
+// Weighted powerup pool - Heal appears 3x more often than others
+const POWER_UP_TYPES = [
+  PowerUpType.RapidFire,
+  PowerUpType.Speed,
+  PowerUpType.Shield,
+  PowerUpType.Magnet,
+  PowerUpType.Heal,
+  PowerUpType.Heal,  // Extra Heal for more healing
+  PowerUpType.Heal   // Extra Heal for more healing
+]
 
 export class PowerUpManager {
   private powerUps: PowerUp[] = []
@@ -70,8 +79,8 @@ export class PowerUpManager {
       spawnedAt: now
     })
 
-    // Keep max 5 power-ups on map
-    if (this.powerUps.length > 5) {
+    // Keep max power-ups on map
+    if (this.powerUps.length > MAX_POWERUPS) {
       this.powerUps.shift()
     }
   }
