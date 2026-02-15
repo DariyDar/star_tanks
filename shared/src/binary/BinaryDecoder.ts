@@ -198,6 +198,40 @@ export class BinaryDecoder {
       leaderboard.push(this.decodeLeaderboardEntry())
     }
 
+    // Decode boss (1 or 25 bytes)
+    let boss = null
+    const hasBoss = this.readUint8()
+    if (hasBoss) {
+      const x = this.readFloat32()
+      const y = this.readFloat32()
+      const hp = this.readUint16()
+      const maxHp = this.readUint16()
+      const phase = this.readUint8()
+      const angle = this.readFloat32()
+      const isAlive = this.readUint8() === 1
+      const hasLaser = this.readUint8()
+      const laserAngle = hasLaser ? this.readFloat32() : (this.offset += 4, undefined)
+      const attackNum = this.readUint8()
+
+      const attacks = ['circularBarrage', 'fanShot', 'spiral', 'rotatingLaser', 'tripleShot', 'teleportExplosion', 'mineField', 'bulletWave', 'chaosFire', 'rageMode']
+      const currentAttack = attackNum > 0 ? attacks[attackNum - 1] as any : null
+
+      boss = {
+        id: 'boss_1',
+        position: { x, y },
+        hp,
+        maxHp,
+        currentAttack,
+        lastAttackTime: 0,
+        nextAttackAt: 0,
+        phase,
+        angle,
+        laserAngle,
+        isAlive,
+        lastPhaseRewardAt: 0
+      }
+    }
+
     return {
       tick,
       timestamp,
@@ -208,7 +242,7 @@ export class BinaryDecoder {
       powerUps,
       portals,
       zone,
-      boss: null, // TODO: Implement boss binary encoding/decoding
+      boss,
       leaderboard,
       playersAlive,
       timeElapsed

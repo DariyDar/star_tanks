@@ -34,14 +34,18 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   const tankCount = state.tanks.length
   const leaderboardCount = state.leaderboard.length
 
-  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*31) + Leaderboard(1+n*6)
+  // Boss encoding size: hasBoss(1) + x(4) + y(4) + hp(2) + maxHp(2) + phase(1) + angle(4) + isAlive(1) + hasLaser(1) + laserAngle(4) + attack(1) = 25
+  const bossSize = state.boss ? 25 : 1
+
+  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*31) + Leaderboard(1+n*6) + Boss(1 or 25)
   const size = 15 + 18 +
     1 + starCount * STAR_ITEM_SIZE +
     1 + bulletCount * BULLET_ENCODE_SIZE +
     1 + powerUpCount * POWERUP_ENCODE_SIZE +
     1 + portalCount * PORTAL_ENCODE_SIZE +
     1 + tankCount * TANK_ENCODE_SIZE +
-    1 + leaderboardCount * LEADERBOARD_ENTRY_SIZE
+    1 + leaderboardCount * LEADERBOARD_ENTRY_SIZE +
+    bossSize
 
   const buffer = new ArrayBuffer(size)
   const view = new DataView(buffer)
@@ -107,7 +111,39 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     offset = encodeLeaderboardEntry(view, offset, entry, indexMap)
   }
 
+  // Boss (1 or 25 bytes)
+  if (state.boss && state.boss.isAlive) {
+    view.setUint8(offset, 1); offset += 1 // hasBoss = true
+    view.setFloat32(offset, state.boss.position.x, true); offset += 4
+    view.setFloat32(offset, state.boss.position.y, true); offset += 4
+    view.setUint16(offset, state.boss.hp, true); offset += 2
+    view.setUint16(offset, state.boss.maxHp, true); offset += 2
+    view.setUint8(offset, state.boss.phase); offset += 1
+    view.setFloat32(offset, state.boss.angle, true); offset += 4
+    view.setUint8(offset, state.boss.isAlive ? 1 : 0); offset += 1
+
+    // Laser angle (optional)
+    if (state.boss.laserAngle !== undefined) {
+      view.setUint8(offset, 1); offset += 1 // hasLaser = true
+      view.setFloat32(offset, state.boss.laserAngle, true); offset += 4
+    } else {
+      view.setUint8(offset, 0); offset += 1 // hasLaser = false
+      offset += 4 // skip laserAngle bytes
+    }
+
+    // Current attack (0 = null, 1-10 = attack types)
+    view.setUint8(offset, state.boss.currentAttack ? bossAttackTypeToNumber(state.boss.currentAttack) : 0); offset += 1
+  } else {
+    view.setUint8(offset, 0); offset += 1 // hasBoss = false
+  }
+
   return buffer
+}
+
+function bossAttackTypeToNumber(attack: string): number {
+  const attacks = ['circularBarrage', 'fanShot', 'spiral', 'rotatingLaser', 'tripleShot', 'teleportExplosion', 'mineField', 'bulletWave', 'chaosFire', 'rageMode']
+  const idx = attacks.indexOf(attack)
+  return idx >= 0 ? idx + 1 : 0
 }
 
 function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexMap): number {
