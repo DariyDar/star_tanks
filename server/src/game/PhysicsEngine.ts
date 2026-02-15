@@ -7,9 +7,7 @@ import {
 import {
   SpatialGrid, isBlockingMovement
 } from '@tank-br/shared/collision.js'
-import { TICK_MS, TANK_RADIUS } from '@tank-br/shared/constants.js'
-
-const TANK_DIAMETER_SQ = (TANK_RADIUS * 2) * (TANK_RADIUS * 2)
+import { TICK_MS } from '@tank-br/shared/constants.js'
 
 export class PhysicsEngine {
   constructor(
@@ -32,20 +30,22 @@ export class PhysicsEngine {
     let newX = tank.position.x + dx
     let newY = tank.position.y + dy
 
+    const radius = tank.tankRadius
+
     // Clamp to map bounds (with radius offset)
-    newX = clamp(newX, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
-    newY = clamp(newY, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
+    newX = clamp(newX, radius, this.mapWidth - 1 - radius)
+    newY = clamp(newY, radius, this.mapHeight - 1 - radius)
 
     // Try full movement first
-    if (!this.collidesWithObstacle(newX, newY) && !this.collidesWithTank(newX, newY, tank.id, allTanks)) {
+    if (!this.collidesWithObstacle(newX, newY, radius) && !this.collidesWithTank(newX, newY, tank.id, allTanks)) {
       tank.position = { x: newX, y: newY }
       return
     }
 
     // Wall sliding: try X-only
     const slideX = tank.position.x + dx
-    const clampedSlideX = clamp(slideX, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
-    if (!this.collidesWithObstacle(clampedSlideX, tank.position.y) &&
+    const clampedSlideX = clamp(slideX, radius, this.mapWidth - 1 - radius)
+    if (!this.collidesWithObstacle(clampedSlideX, tank.position.y, radius) &&
         !this.collidesWithTank(clampedSlideX, tank.position.y, tank.id, allTanks)) {
       tank.position = { x: clampedSlideX, y: tank.position.y }
       return
@@ -53,8 +53,8 @@ export class PhysicsEngine {
 
     // Wall sliding: try Y-only
     const slideY = tank.position.y + dy
-    const clampedSlideY = clamp(slideY, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
-    if (!this.collidesWithObstacle(tank.position.x, clampedSlideY) &&
+    const clampedSlideY = clamp(slideY, radius, this.mapHeight - 1 - radius)
+    if (!this.collidesWithObstacle(tank.position.x, clampedSlideY, radius) &&
         !this.collidesWithTank(tank.position.x, clampedSlideY, tank.id, allTanks)) {
       tank.position = { x: tank.position.x, y: clampedSlideY }
       return
@@ -63,12 +63,12 @@ export class PhysicsEngine {
     // Fully blocked — don't move
   }
 
-  private collidesWithObstacle(cx: number, cy: number): boolean {
+  private collidesWithObstacle(cx: number, cy: number, radius: number): boolean {
     // Check all cells in the bounding box of the tank circle
-    const minX = Math.floor(cx - TANK_RADIUS)
-    const maxX = Math.floor(cx + TANK_RADIUS)
-    const minY = Math.floor(cy - TANK_RADIUS)
-    const maxY = Math.floor(cy + TANK_RADIUS)
+    const minX = Math.floor(cx - radius)
+    const maxX = Math.floor(cx + radius)
+    const minY = Math.floor(cy - radius)
+    const maxY = Math.floor(cy + radius)
 
     for (let gy = minY; gy <= maxY; gy++) {
       for (let gx = minX; gx <= maxX; gx++) {
@@ -82,7 +82,7 @@ export class PhysicsEngine {
         const distX = cx - closestX
         const distY = cy - closestY
 
-        if (distX * distX + distY * distY < TANK_RADIUS * TANK_RADIUS) {
+        if (distX * distX + distY * distY < radius * radius) {
           return true
         }
       }
@@ -92,18 +92,24 @@ export class PhysicsEngine {
   }
 
   private collidesWithTank(x: number, y: number, selfId: string, allTanks: Tank[]): boolean {
+    const self = allTanks.find(t => t.id === selfId)
+    if (!self) return false
+
+    const selfRadius = self.tankRadius
+
     for (const other of allTanks) {
       if (other.id === selfId || !other.isAlive) continue
       const dx = x - other.position.x
       const dy = y - other.position.y
-      if (dx * dx + dy * dy < TANK_DIAMETER_SQ) {
+      const minDist = selfRadius + other.tankRadius
+      if (dx * dx + dy * dy < minDist * minDist) {
         return true
       }
     }
     return false
   }
 
-  isPositionFree(pos: Vec2): boolean {
-    return !this.collidesWithObstacle(pos.x, pos.y)
+  isPositionFree(pos: Vec2, radius = 0.45): boolean {
+    return !this.collidesWithObstacle(pos.x, pos.y, radius)
   }
 }

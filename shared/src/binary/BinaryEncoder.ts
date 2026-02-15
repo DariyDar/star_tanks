@@ -13,8 +13,8 @@ import { TANK_COLORS } from '../constants.js'
 
 // Star item size: index(1) + active(1) + respawnAt(4) = 6
 const STAR_ITEM_SIZE = 6
-// Tank size: index(1) + x(4) + y(4) + hullAngle(4) + turretAngle(4) + hp(1) + maxHp(1) + stars(2) + kills(2) + flags(1) + colorIdx(1) + powerUpEndTime(4) + fireCooldown(2) = 31
-const TANK_ENCODE_SIZE = 31
+// Tank size: index(1) + x(4) + y(4) + hullAngle(4) + turretAngle(4) + hp(1) + maxHp(1) + stars(2) + kills(2) + flags(1) + colorIdx(1) + powerUpEndTime(4) + fireCooldown(2) + tankRadius(4) = 35
+const TANK_ENCODE_SIZE = 35
 // Bullet size: ownerIndex(1) + x(4) + y(4) + angle(4) + dist(1) = 14
 const BULLET_ENCODE_SIZE = 14
 // PowerUp size: x(4) + y(4) + type(1) + spawnedAt(1) = 10
@@ -133,6 +133,7 @@ function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexM
   view.setUint8(offset, colorIndex !== -1 ? colorIndex : 0); offset += 1
   view.setFloat32(offset, tank.powerUpEndTime, true); offset += 4
   view.setUint16(offset, tank.fireCooldown, true); offset += 2
+  view.setFloat32(offset, tank.tankRadius, true); offset += 4
 
   return offset
 }

@@ -27,53 +27,125 @@ export class TankRenderer {
       // Smooth turret rotation
       const turretAngle = this.smoothAngle(this.turretAngles, tank.id, tank.turretAngle, TURRET_ROTATION_SPEED, dt)
 
-      const s = cellPx * 0.45
+      // Scale size based on tankRadius (grows with stars)
+      const s = cellPx * tank.tankRadius
 
-      // 1. Draw hull (treads + body)
+      // Shadow under tank (2.5D effect)
+      ctx.save()
+      ctx.globalAlpha = 0.3
+      ctx.fillStyle = '#000'
+      ctx.beginPath()
+      ctx.ellipse(cx + s * 0.15, cy + s * 0.15, s * 1.1, s * 0.9, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1.0
+      ctx.restore()
+
+      // 1. Draw hull (treads + body) with 3D effect
       ctx.save()
       ctx.translate(cx, cy)
       ctx.rotate(hullAngle)
 
-      // Treads
-      ctx.fillStyle = shadeColor(tank.color, -60)
-      ctx.fillRect(-s, -s, s * 0.35, s * 2)
-      ctx.fillRect(s * 0.65, -s, s * 0.35, s * 2)
+      // Treads with depth and gradient
+      const treadGradient = ctx.createLinearGradient(-s, -s, -s, s)
+      treadGradient.addColorStop(0, shadeColor(tank.color, -80))
+      treadGradient.addColorStop(0.3, shadeColor(tank.color, -60))
+      treadGradient.addColorStop(0.7, shadeColor(tank.color, -70))
+      treadGradient.addColorStop(1, shadeColor(tank.color, -90))
 
-      // Tread marks
-      ctx.strokeStyle = shadeColor(tank.color, -80)
-      ctx.lineWidth = 1
-      for (let i = 0; i < 4; i++) {
-        const ty = -s + (i + 0.5) * (s * 2) / 4
+      // Left tread with 3D depth
+      ctx.fillStyle = treadGradient
+      ctx.fillRect(-s * 1.05, -s, s * 0.35, s * 2)
+      // Inner shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'
+      ctx.fillRect(-s * 1.05, -s, s * 0.1, s * 2)
+
+      // Right tread
+      ctx.fillStyle = treadGradient
+      ctx.fillRect(s * 0.7, -s, s * 0.35, s * 2)
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'
+      ctx.fillRect(s * 0.7, -s, s * 0.1, s * 2)
+
+      // Tread details (rivets and tracks)
+      ctx.fillStyle = shadeColor(tank.color, -100)
+      for (let i = 0; i < 6; i++) {
+        const ty = -s + (i / 5) * (s * 2)
+        // Left tread rivets
         ctx.beginPath()
-        ctx.moveTo(-s, ty)
-        ctx.lineTo(-s + s * 0.35, ty)
-        ctx.stroke()
+        ctx.arc(-s * 0.87, ty, s * 0.05, 0, Math.PI * 2)
+        ctx.fill()
+        // Right tread rivets
         ctx.beginPath()
-        ctx.moveTo(s * 0.65, ty)
-        ctx.lineTo(s, ty)
-        ctx.stroke()
+        ctx.arc(s * 0.87, ty, s * 0.05, 0, Math.PI * 2)
+        ctx.fill()
       }
 
-      // Hull body
-      ctx.fillStyle = tank.color
+      // Hull body with metallic gradient
+      const hullGradient = ctx.createLinearGradient(-s * 0.65, -s * 0.8, s * 0.65, s * 0.8)
+      hullGradient.addColorStop(0, shadeColor(tank.color, -20))
+      hullGradient.addColorStop(0.3, tank.color)
+      hullGradient.addColorStop(0.5, shadeColor(tank.color, 20))
+      hullGradient.addColorStop(0.7, tank.color)
+      hullGradient.addColorStop(1, shadeColor(tank.color, -10))
+
+      ctx.fillStyle = hullGradient
       ctx.fillRect(-s * 0.65, -s * 0.8, s * 1.3, s * 1.6)
+
+      // Hull edge highlight (3D effect)
+      ctx.strokeStyle = shadeColor(tank.color, 40)
+      ctx.lineWidth = 2
+      ctx.strokeRect(-s * 0.65, -s * 0.8, s * 1.3, s * 1.6)
+
+      // Hull panels/details
+      ctx.strokeStyle = shadeColor(tank.color, -30)
+      ctx.lineWidth = 1
+      ctx.strokeRect(-s * 0.5, -s * 0.65, s, s * 1.3)
 
       ctx.restore()
 
-      // 2. Draw turret (separate rotation)
+      // 2. Draw turret (separate rotation) with 3D effect
       ctx.save()
       ctx.translate(cx, cy)
       ctx.rotate(turretAngle)
 
-      // Turret dome
-      ctx.fillStyle = shadeColor(tank.color, -30)
+      // Turret base shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'
+      ctx.beginPath()
+      ctx.arc(0, s * 0.05, s * 0.42, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Turret dome with radial gradient (3D sphere effect)
+      const turretGradient = ctx.createRadialGradient(-s * 0.15, -s * 0.15, 0, 0, 0, s * 0.4)
+      turretGradient.addColorStop(0, shadeColor(tank.color, 30))
+      turretGradient.addColorStop(0.5, shadeColor(tank.color, -10))
+      turretGradient.addColorStop(1, shadeColor(tank.color, -40))
+
+      ctx.fillStyle = turretGradient
       ctx.beginPath()
       ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2)
       ctx.fill()
 
-      // Gun barrel
-      ctx.fillStyle = shadeColor(tank.color, -50)
-      ctx.fillRect(-s * 0.08, -s * 1.1, s * 0.16, s * 0.7)
+      // Turret highlight (metallic shine)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+      ctx.beginPath()
+      ctx.arc(-s * 0.1, -s * 0.1, s * 0.15, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Gun barrel with 3D depth
+      const barrelGradient = ctx.createLinearGradient(-s * 0.12, 0, s * 0.12, 0)
+      barrelGradient.addColorStop(0, shadeColor(tank.color, -80))
+      barrelGradient.addColorStop(0.5, shadeColor(tank.color, -50))
+      barrelGradient.addColorStop(1, shadeColor(tank.color, -70))
+
+      ctx.fillStyle = barrelGradient
+      ctx.fillRect(-s * 0.1, -s * 1.2, s * 0.2, s * 0.8)
+
+      // Barrel end (muzzle)
+      ctx.fillStyle = '#000'
+      ctx.fillRect(-s * 0.1, -s * 1.2, s * 0.2, s * 0.1)
+
+      // Barrel highlight
+      ctx.fillStyle = shadeColor(tank.color, -30)
+      ctx.fillRect(-s * 0.08, -s * 1.15, s * 0.03, s * 0.65)
 
       ctx.restore()
 

@@ -2,7 +2,7 @@ import {
   type Tank, type Vec2, type PlayerInput, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
-  TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS
+  TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS, getTankRadius
 } from '@tank-br/shared/constants.js'
 
 export class PlayerManager {
@@ -47,7 +47,8 @@ export class PlayerManager {
       fireCooldown: 0,
       speed: isBot ? BOT_SPEED : TANK_SPEED,
       color: tankColor,
-      magnetRadius: 1  // Базовый радиус притяжения
+      magnetRadius: 1,  // Базовый радиус притяжения
+      tankRadius: getTankRadius(0)  // Базовый радиус танка
     }
 
     this.tanks.set(id, tank)
@@ -112,6 +113,12 @@ export class PlayerManager {
       if (killer) {
         killer.kills++
         killer.stars += droppedStars
+        // Bonus: +1 star for killing a bot
+        if (tank.isBot) {
+          killer.stars += 1
+        }
+        // Update tank size based on new star count
+        killer.tankRadius = getTankRadius(killer.stars)
       }
     }
 

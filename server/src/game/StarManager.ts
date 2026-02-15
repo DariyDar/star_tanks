@@ -1,5 +1,5 @@
 import type { Star, Tank, Vec2 } from '@tank-br/shared/types.js'
-import { STAR_RESPAWN_TIME } from '@tank-br/shared/constants.js'
+import { STAR_RESPAWN_TIME, getTankRadius } from '@tank-br/shared/constants.js'
 
 let starIdCounter = 0
 
@@ -42,6 +42,8 @@ export class StarManager {
           star.active = false
           star.respawnAt = now + STAR_RESPAWN_TIME
           tank.stars += 1
+          // Update tank size based on new star count
+          tank.tankRadius = getTankRadius(tank.stars)
           break
         }
       }

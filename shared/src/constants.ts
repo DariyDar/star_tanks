@@ -16,7 +16,14 @@ export const FIRE_COOLDOWN = 1000
 export const FIRE_COOLDOWN_RAPID = 500
 
 // Collision
-export const TANK_RADIUS = 0.45
+export const TANK_RADIUS = 0.45  // Base tank radius
+export const TANK_SCALE_PER_10_STARS = 0.05  // Increase radius by 0.05 every 10 stars
+
+// Calculate tank radius based on star count
+export function getTankRadius(stars: number): number {
+  const tierBonus = Math.floor(stars / 10) * TANK_SCALE_PER_10_STARS
+  return TANK_RADIUS + tierBonus
+}
 
 // Bullet
 export const BULLET_SPEED = 10

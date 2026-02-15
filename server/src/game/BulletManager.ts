@@ -9,11 +9,10 @@ import {
 } from '@tank-br/shared/collision.js'
 import {
   BULLET_SPEED, BULLET_RANGE, FIRE_COOLDOWN, FIRE_COOLDOWN_RAPID,
-  TICK_MS, TANK_RADIUS
+  TICK_MS
 } from '@tank-br/shared/constants.js'
 
-const BULLET_HIT_RADIUS = TANK_RADIUS + 0.15
-const BULLET_HIT_RADIUS_SQ = BULLET_HIT_RADIUS * BULLET_HIT_RADIUS
+const BULLET_HIT_BUFFER = 0.15  // Extra buffer for bullet hit detection
 
 export interface BulletHit {
   bullet: Bullet
@@ -127,7 +126,8 @@ export class BulletManager {
       if (tank.id === bullet.ownerId) continue
       const dx = bullet.position.x - tank.position.x
       const dy = bullet.position.y - tank.position.y
-      if (dx * dx + dy * dy < BULLET_HIT_RADIUS_SQ) {
+      const hitRadius = tank.tankRadius + BULLET_HIT_BUFFER
+      if (dx * dx + dy * dy < hitRadius * hitRadius) {
         return tank
       }
     }

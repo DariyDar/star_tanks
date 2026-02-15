@@ -3,7 +3,8 @@ import { createRng, rngInt, distance } from '../math.js'
 import { MAP_WIDTH, MAP_HEIGHT, STARS_PER_MAP, BRICK_HP } from '../constants.js'
 
 export function generateVillageMap(): MapDefinition {
-  const rng = createRng(42_003)
+  // Use random seed for map variety each game
+  const rng = createRng(Math.random() * 1000000)
   const obstacles: Obstacle[] = []
   const occupied = new Set<string>()
 
@@ -17,35 +18,33 @@ export function generateVillageMap(): MapDefinition {
     obstacles.push({ x, y, type, hp: type === ObstacleType.Brick ? BRICK_HP : 9999 })
   }
 
-  // River running diagonally through the map
-  const riverStartX = rngInt(rng, 0, 40)
-  const riverEndX = rngInt(rng, MAP_WIDTH - 40, MAP_WIDTH)
-  const riverWidth = rngInt(rng, 2, 4)
-
-  for (let y = 0; y < MAP_HEIGHT; y++) {
-    const progress = y / MAP_HEIGHT
-    const centerX = Math.round(riverStartX + (riverEndX - riverStartX) * progress
-      + Math.sin(progress * Math.PI * 4) * 10)
-    for (let w = -Math.floor(riverWidth / 2); w <= Math.floor(riverWidth / 2); w++) {
-      addObstacle(centerX + w, y, ObstacleType.Water)
-    }
-  }
-
-  // Small ponds near river
-  for (let i = 0; i < 3; i++) {
-    const progress = rng()
-    const riverX = Math.round(riverStartX + (riverEndX - riverStartX) * progress
-      + Math.sin(progress * Math.PI * 4) * 10)
-    const side = rng() < 0.5 ? -1 : 1
-    const cx = riverX + side * rngInt(rng, 8, 20)
-    const cy = Math.round(progress * MAP_HEIGHT)
-    const r = rngInt(rng, 2, 4)
+  // Scattered ponds and small creeks (no continuous river)
+  for (let i = 0; i < 8; i++) {
+    const cx = rngInt(rng, 20, MAP_WIDTH - 20)
+    const cy = rngInt(rng, 20, MAP_HEIGHT - 20)
+    const r = rngInt(rng, 2, 5)
 
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (dx * dx + dy * dy <= r * r) {
           addObstacle(cx + dx, cy + dy, ObstacleType.Water)
         }
+      }
+    }
+  }
+
+  // Small creek segments (short, not continuous)
+  for (let i = 0; i < 5; i++) {
+    const startX = rngInt(rng, 20, MAP_WIDTH - 20)
+    const startY = rngInt(rng, 20, MAP_HEIGHT - 20)
+    const horizontal = rng() < 0.5
+    const len = rngInt(rng, 5, 15)  // Short segments only
+    const width = rngInt(rng, 1, 2)
+
+    for (let j = 0; j < len; j++) {
+      for (let w = 0; w <= width; w++) {
+        if (horizontal) addObstacle(startX + j, startY + w, ObstacleType.Water)
+        else addObstacle(startX + w, startY + j, ObstacleType.Water)
       }
     }
   }

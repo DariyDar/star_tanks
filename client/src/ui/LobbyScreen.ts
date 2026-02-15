@@ -57,22 +57,21 @@ export class LobbyScreen {
     title.style.cssText = 'color: #FFD700; font-size: 2em; margin-bottom: 10px;'
     this.container.appendChild(title)
 
-    // Account stars display
-    if (this.accountStars !== null) {
-      const starsDisplay = document.createElement('div')
-      starsDisplay.textContent = `⭐ Your Stars: ${this.accountStars}`
-      starsDisplay.style.cssText = `
-        font-size: 20px; color: #FFD700; margin-bottom: 5px; font-weight: bold;
-      `
-      this.container.appendChild(starsDisplay)
+    // Account stars display - always show
+    const starsDisplay = document.createElement('div')
+    const displayStars = this.accountStars !== null ? this.accountStars : 50  // Default to 50 (initial stars)
+    starsDisplay.textContent = `⭐ Your Stars: ${displayStars}`
+    starsDisplay.style.cssText = `
+      font-size: 20px; color: #FFD700; margin-bottom: 5px; font-weight: bold;
+    `
+    this.container.appendChild(starsDisplay)
 
-      const entryCost = document.createElement('div')
-      entryCost.textContent = 'Entry Cost: 2 ⭐'
-      entryCost.style.cssText = `
-        font-size: 14px; color: #AAA; margin-bottom: 15px;
-      `
-      this.container.appendChild(entryCost)
-    }
+    const entryCost = document.createElement('div')
+    entryCost.textContent = 'Entry Cost: 2 ⭐'
+    entryCost.style.cssText = `
+      font-size: 14px; color: #AAA; margin-bottom: 15px;
+    `
+    this.container.appendChild(entryCost)
 
     // Error message
     if (this.errorMessage) {

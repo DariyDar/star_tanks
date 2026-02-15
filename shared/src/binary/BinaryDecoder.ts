@@ -215,7 +215,7 @@ export class BinaryDecoder {
   }
 
   /**
-   * Decode a single Tank (30 bytes)
+   * Decode a single Tank (35 bytes)
    *
    * Format:
    * - 1B index
@@ -231,6 +231,7 @@ export class BinaryDecoder {
    * - 1B unused
    * - 4B powerUpEndTime (float32)
    * - 2B fireCooldown
+   * - 4B tankRadius (float32)
    */
   private decodeTank(): Tank {
     const index = this.readUint8()
@@ -246,6 +247,7 @@ export class BinaryDecoder {
     this.readUint8() // reserved
     const powerUpEndTime = this.readFloat32()
     const fireCooldown = this.readUint16()
+    const tankRadius = this.readFloat32()
 
     const isAlive = (flags & 0x01) !== 0
     const isBot = (flags & 0x02) !== 0
@@ -278,7 +280,8 @@ export class BinaryDecoder {
       fireCooldown,
       speed: 0,
       color,
-      magnetRadius: 1
+      magnetRadius: 1,
+      tankRadius
     }
   }
 

@@ -6,6 +6,14 @@ interface Explosion {
   y: number
   startTime: number
   duration: number
+  particles: ExplosionParticle[]
+}
+
+interface ExplosionParticle {
+  angle: number
+  speed: number
+  size: number
+  color: string
 }
 
 interface BulletImpact {
@@ -15,9 +23,38 @@ interface BulletImpact {
   duration: number
 }
 
+interface MuzzleFlash {
+  x: number
+  y: number
+  angle: number
+  startTime: number
+  duration: number
+}
+
+interface SmokeParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  startTime: number
+  duration: number
+  size: number
+}
+
+interface TankTrail {
+  x: number
+  y: number
+  angle: number
+  startTime: number
+  duration: number
+}
+
 export class EffectsRenderer {
   private explosions: Explosion[] = []
   private bulletImpacts: BulletImpact[] = []
+  private muzzleFlashes: MuzzleFlash[] = []
+  private smokeParticles: SmokeParticle[] = []
+  private tankTrails: TankTrail[] = []
   private fadeStartTime = 0
   private fadeColor: 'white' | 'black' | null = null
   private fadeDuration = PORTAL_EXIT_FADE_DURATION
@@ -35,12 +72,41 @@ export class EffectsRenderer {
   recoilOffsetY = 0
 
   addExplosion(x: number, y: number): void {
+    // Create particles for the explosion
+    const particles: ExplosionParticle[] = []
+    const particleCount = 20
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5
+      particles.push({
+        angle,
+        speed: 0.15 + Math.random() * 0.15,
+        size: 0.1 + Math.random() * 0.15,
+        color: i % 3 === 0 ? '#FFD700' : i % 3 === 1 ? '#FF6600' : '#FF3300'
+      })
+    }
+
     this.explosions.push({
       x, y,
       startTime: Date.now(),
-      duration: 600
+      duration: 800,
+      particles
     })
     this.addScreenShake(6)
+
+    // Add smoke particles
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const speed = 0.02 + Math.random() * 0.03
+      this.smokeParticles.push({
+        x: x + (Math.random() - 0.5) * 0.3,
+        y: y + (Math.random() - 0.5) * 0.3,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.02, // Rise up
+        startTime: Date.now() + Math.random() * 200,
+        duration: 1200,
+        size: 0.3 + Math.random() * 0.3
+      })
+    }
   }
 
   addBulletImpact(x: number, y: number): void {
@@ -50,6 +116,59 @@ export class EffectsRenderer {
       duration: 300
     })
     this.addScreenShake(2)
+
+    // Add small smoke puff
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const speed = 0.01 + Math.random() * 0.02
+      this.smokeParticles.push({
+        x: x + (Math.random() - 0.5) * 0.1,
+        y: y + (Math.random() - 0.5) * 0.1,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.01,
+        startTime: Date.now(),
+        duration: 500,
+        size: 0.1 + Math.random() * 0.1
+      })
+    }
+  }
+
+  addMuzzleFlash(x: number, y: number, angle: number): void {
+    this.muzzleFlashes.push({
+      x, y, angle,
+      startTime: Date.now(),
+      duration: 80
+    })
+
+    // Add muzzle smoke
+    for (let i = 0; i < 2; i++) {
+      const spread = (Math.random() - 0.5) * 0.3
+      this.smokeParticles.push({
+        x: x + Math.sin(angle) * 0.5,
+        y: y - Math.cos(angle) * 0.5,
+        vx: Math.sin(angle + spread) * 0.04,
+        vy: -Math.cos(angle + spread) * 0.04 - 0.01,
+        startTime: Date.now(),
+        duration: 600,
+        size: 0.15 + Math.random() * 0.1
+      })
+    }
+  }
+
+  addTankTrail(x: number, y: number, angle: number): void {
+    // Only add trail occasionally (not every frame)
+    if (Math.random() > 0.3) return
+
+    this.tankTrails.push({
+      x, y, angle,
+      startTime: Date.now(),
+      duration: 2000
+    })
+
+    // Limit trails to prevent performance issues
+    if (this.tankTrails.length > 100) {
+      this.tankTrails.shift()
+    }
   }
 
   addScreenShake(intensity: number): void {
@@ -106,19 +225,69 @@ export class EffectsRenderer {
       const cx = sx + cellPx / 2
       const cy = sy + cellPx / 2
 
-      const maxR = cellPx * 1.5
-      const r = maxR * t
-      const alpha = 1 - t
+      // Multiple expanding shockwave rings
+      for (let ring = 0; ring < 3; ring++) {
+        const ringDelay = ring * 0.1
+        const ringT = Math.max(0, Math.min(1, (t - ringDelay) / (1 - ringDelay)))
+        if (ringT <= 0) continue
 
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-      grad.addColorStop(0, `rgba(255, 200, 50, ${alpha})`)
-      grad.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.6})`)
-      grad.addColorStop(1, `rgba(255, 0, 0, 0)`)
+        const maxR = cellPx * (1.8 - ring * 0.3)
+        const r = maxR * ringT
+        const alpha = (1 - ringT) * 0.6
 
-      ctx.fillStyle = grad
-      ctx.beginPath()
-      ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.fill()
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+        grad.addColorStop(0, `rgba(255, 220, 100, ${alpha})`)
+        grad.addColorStop(0.4, `rgba(255, 120, 30, ${alpha * 0.7})`)
+        grad.addColorStop(0.7, `rgba(255, 50, 0, ${alpha * 0.4})`)
+        grad.addColorStop(1, `rgba(100, 0, 0, 0)`)
+
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // Flying particles
+      for (const particle of exp.particles) {
+        const particleT = Math.min(1, t * 1.5) // Particles move faster
+        const dist = particle.speed * cellPx * 3 * particleT
+        const px = cx + Math.cos(particle.angle) * dist
+        const py = cy + Math.sin(particle.angle) * dist + cellPx * 0.5 * particleT * particleT // Gravity
+
+        const particleAlpha = (1 - particleT) * 0.9
+        const particleSize = particle.size * cellPx * (1 - particleT * 0.5)
+
+        // Particle glow
+        ctx.shadowBlur = 8
+        ctx.shadowColor = particle.color
+
+        // Convert hex color to rgba
+        const hexToRgba = (hex: string, alpha: number) => {
+          const num = parseInt(hex.slice(1), 16)
+          const r = (num >> 16) & 0xFF
+          const g = (num >> 8) & 0xFF
+          const b = num & 0xFF
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`
+        }
+
+        ctx.fillStyle = hexToRgba(particle.color, particleAlpha)
+        ctx.beginPath()
+        ctx.arc(px, py, particleSize, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.shadowBlur = 0
+      }
+
+      // Central flash (early phase)
+      if (t < 0.3) {
+        const flashT = t / 0.3
+        const flashAlpha = (1 - flashT) * 0.8
+        const flashR = cellPx * 0.8 * (1 + flashT)
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`
+        ctx.beginPath()
+        ctx.arc(cx, cy, flashR, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
   }
 
@@ -220,6 +389,125 @@ export class EffectsRenderer {
     }
   }
 
+  renderMuzzleFlashes(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.muzzleFlashes = this.muzzleFlashes.filter(m => now - m.startTime < m.duration)
+
+    for (const flash of this.muzzleFlashes) {
+      const t = (now - flash.startTime) / flash.duration
+      const { sx, sy } = camera.worldToScreen(flash.x, flash.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(flash.angle)
+
+      // Flash cone
+      const flashLength = cellPx * 0.6 * (1 - t)
+      const flashWidth = cellPx * 0.4 * (1 - t)
+      const alpha = (1 - t) * 0.9
+
+      const grad = ctx.createLinearGradient(0, 0, 0, flashLength)
+      grad.addColorStop(0, `rgba(255, 255, 200, ${alpha})`)
+      grad.addColorStop(0.5, `rgba(255, 200, 50, ${alpha * 0.7})`)
+      grad.addColorStop(1, `rgba(255, 100, 0, 0)`)
+
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.lineTo(-flashWidth / 2, flashLength)
+      ctx.lineTo(flashWidth / 2, flashLength)
+      ctx.closePath()
+      ctx.fill()
+
+      // Bright core
+      ctx.shadowBlur = 10
+      ctx.shadowColor = '#FFFF00'
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`
+      ctx.beginPath()
+      ctx.arc(0, 0, cellPx * 0.15 * (1 - t * 0.5), 0, Math.PI * 2)
+      ctx.fill()
+      ctx.shadowBlur = 0
+
+      ctx.restore()
+    }
+  }
+
+  renderSmokeParticles(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.smokeParticles = this.smokeParticles.filter(s => now - s.startTime < s.duration)
+
+    for (const smoke of this.smokeParticles) {
+      if (now < smoke.startTime) continue
+
+      const t = (now - smoke.startTime) / smoke.duration
+      const x = smoke.x + smoke.vx * (now - smoke.startTime) / 16.67
+      const y = smoke.y + smoke.vy * (now - smoke.startTime) / 16.67
+
+      if (!camera.isVisible(x, y)) continue
+
+      const { sx, sy } = camera.worldToScreen(x, y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      const size = smoke.size * cellPx * (1 + t * 0.5) // Expand over time
+      const alpha = (1 - t) * 0.4
+
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size)
+      grad.addColorStop(0, `rgba(80, 80, 80, ${alpha})`)
+      grad.addColorStop(0.5, `rgba(60, 60, 60, ${alpha * 0.6})`)
+      grad.addColorStop(1, `rgba(40, 40, 40, 0)`)
+
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(cx, cy, size, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  renderTankTrails(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.tankTrails = this.tankTrails.filter(t => now - t.startTime < t.duration)
+
+    for (const trail of this.tankTrails) {
+      if (!camera.isVisible(trail.x, trail.y)) continue
+
+      const t = (now - trail.startTime) / trail.duration
+      const { sx, sy } = camera.worldToScreen(trail.x, trail.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      const alpha = (1 - t) * 0.15
+
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(trail.angle)
+
+      // Two track marks (left and right)
+      const trackWidth = cellPx * 0.15
+      const trackOffset = cellPx * 0.25
+
+      for (const side of [-1, 1]) {
+        ctx.fillStyle = `rgba(50, 50, 50, ${alpha})`
+        ctx.fillRect(-trackWidth / 2 + side * trackOffset, -cellPx * 0.15, trackWidth, cellPx * 0.3)
+
+        // Track treads
+        ctx.strokeStyle = `rgba(40, 40, 40, ${alpha})`
+        ctx.lineWidth = 1
+        for (let i = 0; i < 3; i++) {
+          const y = -cellPx * 0.1 + i * cellPx * 0.1
+          ctx.beginPath()
+          ctx.moveTo(-trackWidth / 2 + side * trackOffset, y)
+          ctx.lineTo(trackWidth / 2 + side * trackOffset, y)
+          ctx.stroke()
+        }
+      }
+
+      ctx.restore()
+    }
+  }
+
   renderFade(ctx: CanvasRenderingContext2D): void {
     if (!this.fadeColor) return
 
@@ -264,6 +552,9 @@ export class EffectsRenderer {
   reset(): void {
     this.explosions = []
     this.bulletImpacts = []
+    this.muzzleFlashes = []
+    this.smokeParticles = []
+    this.tankTrails = []
     this.fadeColor = null
     this.shakeIntensity = 0
     this.shakeOffsetX = 0

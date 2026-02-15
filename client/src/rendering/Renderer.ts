@@ -24,6 +24,10 @@ export class Renderer {
 
   // Track previous bullets to detect impacts
   private prevBulletIds = new Set<string>()
+  // Track previous tank positions for trails
+  private prevTankPositions = new Map<string, { x: number; y: number }>()
+  // Track bullets to detect new shots
+  private prevBullets: Map<string, Bullet> = new Map()
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -56,6 +60,21 @@ export class Renderer {
     // Detect bullet impacts (bullets that disappeared since last frame)
     this.detectBulletImpacts(state.bullets)
 
+    // Detect new bullets (muzzle flashes for all tanks)
+    for (const bullet of state.bullets) {
+      if (!this.prevBullets.has(bullet.id)) {
+        // New bullet - add muzzle flash at the owner tank's gun position
+        const ownerTank = state.tanks.find(t => t.id === bullet.ownerId)
+        if (ownerTank && ownerTank.isAlive) {
+          const barrelLength = ownerTank.tankRadius * 1.2
+          const flashX = ownerTank.position.x + Math.sin(ownerTank.turretAngle) * barrelLength
+          const flashY = ownerTank.position.y - Math.cos(ownerTank.turretAngle) * barrelLength
+          this.effects.addMuzzleFlash(flashX, flashY, ownerTank.turretAngle)
+        }
+      }
+    }
+    this.prevBullets = new Map(state.bullets.map(b => [b.id, b]))
+
     // Update screen shake + recoil
     this.effects.updateShake()
 
@@ -69,6 +88,9 @@ export class Renderer {
     // Zone overlay
     this.zoneRenderer.render(ctx, state.zone, camera, cellPx)
 
+    // Tank trails (drawn first, under everything)
+    this.effects.renderTankTrails(ctx, camera, cellPx)
+
     // Stars
     this.renderStars(ctx, state, camera, cellPx)
 
@@ -81,8 +103,9 @@ export class Renderer {
     // Bullets
     this.bulletRenderer.render(ctx, state.bullets, camera, cellPx)
 
-    // Bullet impacts
+    // Bullet impacts and smoke
     this.effects.renderBulletImpacts(ctx, camera, cellPx)
+    this.effects.renderSmokeParticles(ctx, camera, cellPx)
 
     // Tanks — use predicted position/angles for my tank
     const displayTanks = state.tanks.map(t => {
@@ -104,7 +127,29 @@ export class Renderer {
       }
       return t
     })
+    // Add tank trails for moving tanks
+    for (const tank of displayTanks) {
+      if (!tank.isAlive) continue
+
+      const prevPos = this.prevTankPositions.get(tank.id)
+      if (prevPos) {
+        const dx = tank.position.x - prevPos.x
+        const dy = tank.position.y - prevPos.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+
+        // Tank is moving if it moved more than a small threshold
+        if (dist > 0.02) {
+          this.effects.addTankTrail(tank.position.x, tank.position.y, tank.hullAngle)
+        }
+      }
+
+      this.prevTankPositions.set(tank.id, { x: tank.position.x, y: tank.position.y })
+    }
+
     this.tankRenderer.render(ctx, displayTanks, camera, cellPx, playerId)
+
+    // Muzzle flashes (on top of tanks)
+    this.effects.renderMuzzleFlashes(ctx, camera, cellPx)
 
     // Explosions
     this.effects.renderExplosions(ctx, camera, cellPx)
@@ -169,6 +214,8 @@ export class Renderer {
     camera: import('../game/Camera.js').Camera,
     cellPx: number
   ): void {
+    const t = Date.now() / 1000
+
     for (const star of state.stars) {
       if (!star.active) continue
       if (!camera.isVisible(star.position.x, star.position.y)) continue
@@ -176,17 +223,75 @@ export class Renderer {
       const { sx, sy } = camera.worldToScreen(star.position.x, star.position.y, cellPx)
       const cx = sx + cellPx / 2
       const cy = sy + cellPx / 2
-      const r = cellPx * 0.3
+      const r = cellPx * 0.32
 
-      ctx.fillStyle = '#FFD700'
+      // Shadow under star
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+      ctx.beginPath()
+      ctx.arc(cx + 2, cy + 2, r * 0.8, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Glow effect
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 15
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'
+      ctx.beginPath()
+      ctx.arc(cx, cy, r * 1.5, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Rotate star slowly
+      const rotation = t * 0.5
+
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(rotation)
+
+      // Star with gradient (3D effect)
+      const starGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
+      starGradient.addColorStop(0, '#FFFFD0')
+      starGradient.addColorStop(0.4, '#FFD700')
+      starGradient.addColorStop(0.7, '#FFB700')
+      starGradient.addColorStop(1, '#CC9900')
+
+      ctx.fillStyle = starGradient
+      ctx.shadowBlur = 8
+
+      // Draw 5-pointed star
       ctx.beginPath()
       for (let i = 0; i < 5; i++) {
         const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2
-        const method = i === 0 ? 'moveTo' : 'lineTo'
-        ctx[method](cx + r * Math.cos(angle), cy + r * Math.sin(angle))
+        const outerR = r
+        const innerR = r * 0.4
+        const outerAngle = angle
+        const innerAngle = angle + Math.PI / 5
+
+        if (i === 0) {
+          ctx.moveTo(outerR * Math.cos(outerAngle), outerR * Math.sin(outerAngle))
+        } else {
+          ctx.lineTo(outerR * Math.cos(outerAngle), outerR * Math.sin(outerAngle))
+        }
+        ctx.lineTo(innerR * Math.cos(innerAngle), innerR * Math.sin(innerAngle))
       }
       ctx.closePath()
       ctx.fill()
+
+      // Inner bright core
+      ctx.fillStyle = '#FFFFFF'
+      ctx.shadowBlur = 4
+      ctx.beginPath()
+      ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Sparkle effect
+      const sparkle = Math.sin(t * 3 + star.position.x + star.position.y) * 0.5 + 0.5
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkle})`
+      ctx.shadowBlur = 2
+      ctx.beginPath()
+      ctx.arc(-r * 0.15, -r * 0.15, r * 0.15, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.restore()
+      ctx.shadowBlur = 0
     }
   }
 
@@ -199,7 +304,9 @@ export class Renderer {
     const colors: Record<string, string> = {
       rapidFire: '#FF4444',
       speed: '#44FF44',
-      shield: '#4488FF'
+      shield: '#4488FF',
+      magnet: '#FFD700',
+      heal: '#FF66FF'
     }
 
     for (const pu of state.powerUps) {
@@ -210,16 +317,102 @@ export class Renderer {
       const cy = sy + cellPx / 2
 
       const pulse = 0.8 + Math.sin(Date.now() / 200) * 0.2
-      const r = cellPx * 0.35 * pulse
+      const r = cellPx * 0.4 * pulse
 
+      // Background circle with glow
+      ctx.shadowBlur = 10
+      ctx.shadowColor = colors[pu.type] ?? '#FFF'
       ctx.fillStyle = colors[pu.type] ?? '#FFF'
+      ctx.globalAlpha = 0.3
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.fill()
+      ctx.globalAlpha = 1.0
+      ctx.shadowBlur = 0
 
+      // Icon for each type
+      ctx.strokeStyle = colors[pu.type] ?? '#FFF'
+      ctx.fillStyle = colors[pu.type] ?? '#FFF'
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+
+      const iconSize = r * 0.6
+
+      switch (pu.type) {
+        case 'rapidFire':
+          // Three bullets icon
+          for (let i = -1; i <= 1; i++) {
+            ctx.fillRect(cx + i * iconSize * 0.4 - iconSize * 0.1, cy - iconSize * 0.6, iconSize * 0.2, iconSize * 1.2)
+          }
+          break
+
+        case 'speed':
+          // Lightning bolt
+          ctx.beginPath()
+          ctx.moveTo(cx + iconSize * 0.2, cy - iconSize * 0.8)
+          ctx.lineTo(cx - iconSize * 0.3, cy)
+          ctx.lineTo(cx + iconSize * 0.1, cy)
+          ctx.lineTo(cx - iconSize * 0.2, cy + iconSize * 0.8)
+          ctx.lineTo(cx + iconSize * 0.3, cy - 0.2)
+          ctx.lineTo(cx - iconSize * 0.1, cy - 0.2)
+          ctx.closePath()
+          ctx.fill()
+          break
+
+        case 'shield':
+          // Shield shape
+          ctx.beginPath()
+          ctx.moveTo(cx, cy - iconSize * 0.8)
+          ctx.lineTo(cx + iconSize * 0.6, cy - iconSize * 0.4)
+          ctx.lineTo(cx + iconSize * 0.6, cy + iconSize * 0.2)
+          ctx.quadraticCurveTo(cx + iconSize * 0.6, cy + iconSize * 0.7, cx, cy + iconSize * 0.9)
+          ctx.quadraticCurveTo(cx - iconSize * 0.6, cy + iconSize * 0.7, cx - iconSize * 0.6, cy + iconSize * 0.2)
+          ctx.lineTo(cx - iconSize * 0.6, cy - iconSize * 0.4)
+          ctx.closePath()
+          ctx.fill()
+          // Cross on shield
+          ctx.strokeStyle = '#FFF'
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.moveTo(cx, cy - iconSize * 0.4)
+          ctx.lineTo(cx, cy + iconSize * 0.4)
+          ctx.moveTo(cx - iconSize * 0.3, cy)
+          ctx.lineTo(cx + iconSize * 0.3, cy)
+          ctx.stroke()
+          break
+
+        case 'magnet':
+          // Horseshoe magnet
+          ctx.beginPath()
+          ctx.arc(cx, cy, iconSize * 0.6, Math.PI, 0, false)
+          ctx.lineWidth = iconSize * 0.3
+          ctx.stroke()
+          // Magnet poles (N/S)
+          ctx.fillStyle = '#FF4444'
+          ctx.fillRect(cx - iconSize * 0.65, cy - iconSize * 0.15, iconSize * 0.25, iconSize * 0.5)
+          ctx.fillStyle = '#4444FF'
+          ctx.fillRect(cx + iconSize * 0.4, cy - iconSize * 0.15, iconSize * 0.25, iconSize * 0.5)
+          break
+
+        case 'heal':
+          // Medical cross
+          ctx.fillStyle = colors[pu.type] ?? '#FFF'
+          const crossW = iconSize * 0.3
+          const crossL = iconSize * 0.9
+          ctx.fillRect(cx - crossW / 2, cy - crossL / 2, crossW, crossL)
+          ctx.fillRect(cx - crossL / 2, cy - crossW / 2, crossL, crossW)
+          break
+      }
+
+      // White outline circle
       ctx.strokeStyle = '#FFF'
-      ctx.lineWidth = 1
+      ctx.lineWidth = 2
+      ctx.globalAlpha = 0.8
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.stroke()
+      ctx.globalAlpha = 1.0
     }
   }
 

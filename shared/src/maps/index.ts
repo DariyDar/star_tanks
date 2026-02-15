@@ -3,19 +3,13 @@ import { generateLakesMap } from './lakes.js'
 import { generateMegapolisMap } from './megapolis.js'
 import { generateVillageMap } from './village.js'
 
-const mapCache = new Map<MapId, MapDefinition>()
-
+// Maps are regenerated every time - no caching for variety
 export function getMap(id: MapId): MapDefinition {
-  let map = mapCache.get(id)
-  if (!map) {
-    switch (id) {
-      case 'lakes': map = generateLakesMap(); break
-      case 'megapolis': map = generateMegapolisMap(); break
-      case 'village': map = generateVillageMap(); break
-    }
-    mapCache.set(id, map)
+  switch (id) {
+    case 'lakes': return generateLakesMap()
+    case 'megapolis': return generateMegapolisMap()
+    case 'village': return generateVillageMap()
   }
-  return map
 }
 
 export const MAP_INFO: Array<{ id: MapId; name: string; description: string; botCount: number }> = [

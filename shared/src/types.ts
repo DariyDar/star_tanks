@@ -52,6 +52,7 @@ export interface Tank {
   speed: number
   color: string
   magnetRadius: number  // Радиус притяжения звёзд/бонусов (1-4)
+  tankRadius: number    // Радиус танка для коллизий (растёт с количеством звёзд)
 }
 
 export interface Bullet {

@@ -3,7 +3,8 @@ import { createRng, rngInt, distance } from '../math.js'
 import { MAP_WIDTH, MAP_HEIGHT, STARS_PER_MAP, BRICK_HP } from '../constants.js'
 
 export function generateMegapolisMap(): MapDefinition {
-  const rng = createRng(42_002)
+  // Use random seed for map variety each game
+  const rng = createRng(Math.random() * 1000000)
   const obstacleMap = new Map<string, Obstacle>()
 
   function key(x: number, y: number): string { return `${x},${y}` }
@@ -40,7 +41,7 @@ export function generateMegapolisMap(): MapDefinition {
       const startX = 5 + bx * (blockSize + streetWidth)
       const startY = 5 + by * (blockSize + streetWidth)
 
-      if (rng() < 0.05) continue  // Very dense city - almost no empty blocks
+      if (rng() < 0.5) continue  // Skip 50% of blocks for more open space
 
       const buildingType = rng()
 
@@ -106,18 +107,18 @@ export function generateMegapolisMap(): MapDefinition {
     }
   }
 
-  // One water channel
-  const horizontal = rng() < 0.5
-  const pos = rngInt(rng, 60, MAP_WIDTH - 60)
-  const width = rngInt(rng, 2, 3)
+  // Small water features (fountains/ponds) instead of continuous channel
+  for (let i = 0; i < 5; i++) {
+    const cx = rngInt(rng, 20, MAP_WIDTH - 20)
+    const cy = rngInt(rng, 20, MAP_HEIGHT - 20)
+    const r = rngInt(rng, 2, 4)
 
-  if (horizontal) {
-    for (let x = 20; x < MAP_WIDTH - 20; x++) {
-      for (let w = 0; w < width; w++) addObstacle(x, pos + w, ObstacleType.Water)
-    }
-  } else {
-    for (let y = 20; y < MAP_HEIGHT - 20; y++) {
-      for (let w = 0; w < width; w++) addObstacle(pos + w, y, ObstacleType.Water)
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy <= r * r) {
+          addObstacle(cx + dx, cy + dy, ObstacleType.Water)
+        }
+      }
     }
   }
 

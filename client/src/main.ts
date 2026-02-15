@@ -171,10 +171,19 @@ function gameLoop(now: number) {
       })
     }
 
-    // Recoil on fire start
+    // Recoil and muzzle flash on fire start
     const firing = input.isFiring()
     if (firing && !wasFiring) {
       renderer.effects.triggerRecoil(aimAngle)
+
+      // Add muzzle flash at gun barrel position
+      const myTank = client.getMyTank()
+      if (myTank) {
+        const barrelLength = myTank.tankRadius * 1.2
+        const flashX = myTank.position.x + Math.sin(myTank.turretAngle) * barrelLength
+        const flashY = myTank.position.y - Math.cos(myTank.turretAngle) * barrelLength
+        renderer.effects.addMuzzleFlash(flashX, flashY, myTank.turretAngle)
+      }
     }
     wasFiring = firing
 

@@ -3,7 +3,8 @@ import { createRng, rngInt, distance } from '../math.js'
 import { MAP_WIDTH, MAP_HEIGHT, STARS_PER_MAP, BRICK_HP } from '../constants.js'
 
 export function generateLakesMap(): MapDefinition {
-  const rng = createRng(42_001)
+  // Use random seed for map variety each game
+  const rng = createRng(Math.random() * 1000000)
   const obstacles: Obstacle[] = []
   const occupied = new Set<string>()
 
