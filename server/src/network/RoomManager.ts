@@ -1,6 +1,7 @@
 import { type MapId, type RoomInfo, GamePhase } from '@tank-br/shared/types.js'
 import { MAX_PLAYERS } from '@tank-br/shared/constants.js'
 import { GameRoom, type GameRoomEvents } from '../game/GameRoom.js'
+import { PlayerAccountManager } from '../game/PlayerAccountManager.js'
 import type { Server } from 'socket.io'
 
 let roomIdCounter = 0
@@ -8,6 +9,7 @@ let roomIdCounter = 0
 export class RoomManager {
   private rooms = new Map<string, GameRoom>()
   private playerRooms = new Map<string, string>()
+  private accountManager = new PlayerAccountManager()
 
   constructor(private readonly io: Server) {}
 
@@ -34,7 +36,17 @@ export class RoomManager {
         this.io.to(roomId).emit('server:kill', { deadId, deadName, killerId, killerName })
       },
       onPortalExit: (playerId, playerName, stars) => {
-        this.io.to(roomId).emit('server:portal_exit', { playerId, playerName, stars })
+        // Save stars to player account
+        this.accountManager.addStarsFromPortal(playerId, stars)
+        const account = this.accountManager.getAccount(playerId)
+        const newBalance = account?.totalStars ?? 0
+
+        this.io.to(roomId).emit('server:portal_exit', {
+          playerId,
+          playerName,
+          stars,
+          newAccountBalance: newBalance
+        })
       },
       onGameOver: (leaderboard) => {
         this.io.to(roomId).emit('server:game_over', { leaderboard })
@@ -46,13 +58,30 @@ export class RoomManager {
     return room
   }
 
-  joinRoom(playerId: string, playerName: string, mapId: MapId): GameRoom | null {
+  joinRoom(playerId: string, playerName: string, mapId: MapId): { room: GameRoom; accountStars: number } | null {
+    // Get or create player account
+    const account = this.accountManager.getOrCreateAccount(playerId, playerName)
+
+    // Check if player can afford entry
+    if (!this.accountManager.canAffordEntry(playerId)) {
+      return null
+    }
+
+    // Charge entry fee
+    if (!this.accountManager.chargeEntry(playerId)) {
+      return null
+    }
+
     const room = this.findOrCreateRoom(mapId)
     const success = room.addPlayer(playerId, playerName)
-    if (!success) return null
+    if (!success) {
+      // Refund entry fee if couldn't join room
+      this.accountManager.addStarsFromPortal(playerId, 2)
+      return null
+    }
 
     this.playerRooms.set(playerId, room.roomId)
-    return room
+    return { room, accountStars: account.totalStars }
   }
 
   leaveRoom(playerId: string): void {

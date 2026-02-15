@@ -8,13 +8,25 @@ export class LobbyScreen {
   private onJoin: ((name: string, mapId: MapId) => void) | null = null
   private nameInput: HTMLInputElement | null = null
   private container: HTMLDivElement | null = null
+  private accountStars: number | null = null
+  private errorMessage: string | null = null
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
-  show(onJoin: (name: string, mapId: MapId) => void): void {
+  show(onJoin: (name: string, mapId: MapId) => void, accountStars?: number, errorMessage?: string): void {
     this.visible = true
     this.onJoin = onJoin
+    this.accountStars = accountStars ?? null
+    this.errorMessage = errorMessage ?? null
     this.createUI()
+  }
+
+  updateAccountStars(stars: number): void {
+    this.accountStars = stars
+    if (this.visible) {
+      this.hide()
+      this.show(this.onJoin!, stars)
+    }
   }
 
   hide(): void {
@@ -40,8 +52,36 @@ export class LobbyScreen {
     // Title
     const title = document.createElement('h1')
     title.textContent = 'TANK BATTLE ROYALE'
-    title.style.cssText = 'color: #FFD700; font-size: 2em; margin-bottom: 20px;'
+    title.style.cssText = 'color: #FFD700; font-size: 2em; margin-bottom: 10px;'
     this.container.appendChild(title)
+
+    // Account stars display
+    if (this.accountStars !== null) {
+      const starsDisplay = document.createElement('div')
+      starsDisplay.textContent = `⭐ Your Stars: ${this.accountStars}`
+      starsDisplay.style.cssText = `
+        font-size: 20px; color: #FFD700; margin-bottom: 5px; font-weight: bold;
+      `
+      this.container.appendChild(starsDisplay)
+
+      const entryCost = document.createElement('div')
+      entryCost.textContent = 'Entry Cost: 2 ⭐'
+      entryCost.style.cssText = `
+        font-size: 14px; color: #AAA; margin-bottom: 15px;
+      `
+      this.container.appendChild(entryCost)
+    }
+
+    // Error message
+    if (this.errorMessage) {
+      const errorDiv = document.createElement('div')
+      errorDiv.textContent = this.errorMessage
+      errorDiv.style.cssText = `
+        background: #ff4444; color: white; padding: 10px 20px; border-radius: 8px;
+        margin-bottom: 15px; font-size: 14px;
+      `
+      this.container.appendChild(errorDiv)
+    }
 
     // Name input
     this.nameInput = document.createElement('input')

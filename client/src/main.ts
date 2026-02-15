@@ -23,6 +23,8 @@ let lastMapId = 'lakes'
 let lastLeaderboard: import('@shared/types.js').LeaderboardEntry[] = []
 let lastFrameTime = performance.now()
 let inputSendTimer = 0
+let accountStars: number | null = null
+let lastError: string | null = null
 const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 
 function joinGame(name: string, mapId: string) {
@@ -39,8 +41,9 @@ function joinGame(name: string, mapId: string) {
 
 function showLobby() {
   lobby.show((name, mapId) => {
+    lastError = null  // Clear error when attempting to join
     joinGame(name, mapId)
-  })
+  }, accountStars ?? undefined, lastError ?? undefined)
 }
 
 const socket = new SocketClient({
@@ -53,6 +56,12 @@ const socket = new SocketClient({
     resultScreen.hide()
     lobby.hide()
     joined = true
+
+    // Store account stars if provided
+    const binaryPayload = payload as import('@shared/protocol.js').ServerJoinedPayloadBinary
+    if (binaryPayload.accountStars !== undefined) {
+      accountStars = binaryPayload.accountStars
+    }
   },
 
   onState(state) {
@@ -69,6 +78,11 @@ const socket = new SocketClient({
 
   onPortalExit(payload) {
     if (payload.playerId === client.playerId) {
+      // Update account stars with new balance
+      if (payload.newAccountBalance !== undefined) {
+        accountStars = payload.newAccountBalance
+      }
+
       const fadeColor = payload.stars > 0 ? 'white' as const : 'black' as const
       renderer.effects.startFade(fadeColor)
 
@@ -93,8 +107,12 @@ const socket = new SocketClient({
     }, 3000)
   },
 
-  onError(_message) {
-    // Error handling
+  onError(message) {
+    // Store error and show lobby with error message
+    lastError = message
+    if (!joined) {
+      showLobby()
+    }
   },
 
   onDisconnect() {

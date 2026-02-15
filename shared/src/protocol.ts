@@ -28,6 +28,7 @@ export interface ServerJoinedPayloadBinary extends ServerJoinedPayload {
   tankIndex: number
   starPositions: Array<{ x: number; y: number }>
   tankMeta: Array<{ index: number; id: string; name: string; color: string }>
+  accountStars?: number  // Player's total stars in their account
 }
 
 export interface ServerStatePayload extends GameState {}
@@ -43,6 +44,7 @@ export interface ServerPortalExitPayload {
   playerId: string
   playerName: string
   stars: number
+  newAccountBalance?: number  // Player's new total stars after saving
 }
 
 export interface ServerGameOverPayload {

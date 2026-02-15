@@ -48,12 +48,13 @@ export class SocketHandler {
       return
     }
 
-    const room = this.roomManager.joinRoom(socket.id, playerName, mapId)
-    if (!room) {
-      socket.emit(SERVER_EVENTS.ERROR, { message: 'Could not join room' })
+    const result = this.roomManager.joinRoom(socket.id, playerName, mapId)
+    if (!result) {
+      socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 2 stars)' })
       return
     }
 
+    const { room, accountStars } = result
     socket.join(room.roomId)
 
     const mapData = compressMap(room.mapDefinition)
@@ -69,7 +70,8 @@ export class SocketHandler {
       mapData,
       tankIndex,
       starPositions: room.starPositions,
-      tankMeta
+      tankMeta,
+      accountStars
     })
 
     this.io.to(room.roomId).emit(SERVER_EVENTS.PLAYER_JOINED, {
