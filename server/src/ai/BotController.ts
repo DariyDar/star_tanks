@@ -1,5 +1,5 @@
 import type { Tank, Star, PowerUp, Portal, Zone, Vec2 } from '@tank-br/shared/types.js'
-import { distance, vecToAngle, normalizeAngle } from '@tank-br/shared/math.js'
+import { distance, vecToAngle } from '@tank-br/shared/math.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 
 export interface BotMoveResult {
@@ -11,15 +11,17 @@ interface BotData {
   patrolTarget: Vec2 | null
   lastRetarget: number
   lastAimAngle: number
-  patrolIndex: number  // Unique patrol index for each bot
+  patrolIndex: number
+  targetPlayerId: string | null  // Which player this bot is targeting
 }
 
-const CHASE_RANGE = 20  // Range to detect and chase players
+const CHASE_RANGE = 25  // Range to detect and chase players
 const ZONE_MARGIN = 10  // Distance from zone edge before fleeing
 const RETARGET_INTERVAL = 3000  // Retarget patrol every 3 seconds
 const MIN_PATROL_DISTANCE = 30  // Minimum distance for patrol targets
 const BOT_REPULSION_RANGE = 4  // Bots avoid each other if closer than this
 const BOT_REPULSION_STRENGTH = 2.0  // How strongly bots repel each other
+const MAX_BOTS_PER_TARGET = 3  // Maximum bots that can target the same player
 
 export class BotController {
   private bots = new Map<string, BotData>()
@@ -36,9 +38,9 @@ export class BotController {
       patrolTarget: null,
       lastRetarget: 0,
       lastAimAngle: 0,
-      patrolIndex: this.nextPatrolIndex++
+      patrolIndex: this.nextPatrolIndex++,
+      targetPlayerId: null
     })
-    console.log(`Bot registered: ${botId}, patrol index: ${this.nextPatrolIndex - 1}`)
   }
 
   unregisterBot(botId: string): void {
@@ -55,6 +57,18 @@ export class BotController {
   ): Map<string, BotMoveResult> {
     const moves = new Map<string, BotMoveResult>()
 
+    // Find the richest player (leader)
+    const players = tanks.filter(t => !t.isBot && t.isAlive)
+    const richestPlayer = this.findRichestPlayer(players)
+
+    // Count how many bots are already targeting each player
+    const targetCounts = new Map<string, number>()
+    for (const data of this.bots.values()) {
+      if (data.targetPlayerId) {
+        targetCounts.set(data.targetPlayerId, (targetCounts.get(data.targetPlayerId) || 0) + 1)
+      }
+    }
+
     for (const tank of tanks) {
       if (!tank.isBot || !tank.isAlive) continue
 
@@ -64,7 +78,7 @@ export class BotController {
         data = this.bots.get(tank.id)!
       }
 
-      const moveAngle = this.calculateMoveAngle(tank, data, tanks, zone, now)
+      const moveAngle = this.calculateMoveAngle(tank, data, tanks, zone, now, richestPlayer, targetCounts)
       const aimAngle = this.calculateAimAngle(tank, data, tanks)
 
       data.lastAimAngle = aimAngle
@@ -74,12 +88,26 @@ export class BotController {
     return moves
   }
 
+  private findRichestPlayer(players: Tank[]): Tank | null {
+    if (players.length === 0) return null
+
+    let richest = players[0]
+    for (const player of players) {
+      if (player.stars > richest.stars) {
+        richest = player
+      }
+    }
+    return richest
+  }
+
   private calculateMoveAngle(
     tank: Tank,
     data: BotData,
     tanks: Tank[],
     zone: Zone,
-    now: number
+    now: number,
+    richestPlayer: Tank | null,
+    targetCounts: Map<string, number>
   ): number | null {
     // Priority 0: Avoid other bots (repulsion force)
     const bots = tanks.filter(t => t.isBot && t.isAlive && t.id !== tank.id)
@@ -93,7 +121,6 @@ export class BotController {
       const dist = Math.sqrt(dx * dx + dy * dy)
 
       if (dist < BOT_REPULSION_RANGE && dist > 0.1) {
-        // Normalize and apply repulsion
         const strength = (BOT_REPULSION_RANGE - dist) / BOT_REPULSION_RANGE * BOT_REPULSION_STRENGTH
         repulsionX += (dx / dist) * strength
         repulsionY += (dy / dist) * strength
@@ -117,33 +144,39 @@ export class BotController {
       return vecToAngle(dx, dy)
     }
 
-    // Priority 2: Chase nearest player (ONLY players, not bots)
-    const players = tanks.filter(t =>
-      !t.isBot && t.isAlive && t.id !== tank.id
-    )
+    // Priority 2: Chase richest player (only if less than 3 bots are already chasing)
+    if (richestPlayer && richestPlayer.stars > 0) {
+      const dist = distance(tank.position, richestPlayer.position)
+      const currentTargetCount = targetCounts.get(richestPlayer.id) || 0
 
-    let nearestPlayer: Tank | null = null
-    let nearestDist = CHASE_RANGE
+      // Can attack if:
+      // 1. Already targeting this player, OR
+      // 2. Less than MAX_BOTS_PER_TARGET are targeting them, AND
+      // 3. Player is in range
+      if (dist < CHASE_RANGE) {
+        if (data.targetPlayerId === richestPlayer.id || currentTargetCount < MAX_BOTS_PER_TARGET) {
+          // Start targeting
+          if (data.targetPlayerId !== richestPlayer.id) {
+            data.targetPlayerId = richestPlayer.id
+            targetCounts.set(richestPlayer.id, currentTargetCount + 1)
+          }
 
-    for (const player of players) {
-      const dist = distance(tank.position, player.position)
-      if (dist < nearestDist) {
-        nearestDist = dist
-        nearestPlayer = player
+          const dx = richestPlayer.position.x - tank.position.x
+          const dy = richestPlayer.position.y - tank.position.y
+          return vecToAngle(dx, dy)
+        }
       }
     }
 
-    if (nearestPlayer) {
-      const dx = nearestPlayer.position.x - tank.position.x
-      const dy = nearestPlayer.position.y - tank.position.y
-      return vecToAngle(dx, dy)
+    // No longer chasing anyone
+    if (data.targetPlayerId) {
+      data.targetPlayerId = null
     }
 
     // Priority 3: Patrol to random points (unique per bot)
-    // Retarget if no target or timeout
     if (!data.patrolTarget || now - data.lastRetarget > RETARGET_INTERVAL) {
       // Use bot's unique patrol index to spread bots across map
-      const angle = (data.patrolIndex * 2.4) % (Math.PI * 2)  // Different angle for each bot
+      const angle = (data.patrolIndex * 2.4) % (Math.PI * 2)
       const radius = MIN_PATROL_DISTANCE + Math.random() * 30
 
       const centerX = this.mapWidth / 2
@@ -185,7 +218,6 @@ export class BotController {
     )
 
     if (players.length === 0) {
-      // No players - keep last aim or aim forward
       return data.lastAimAngle || tank.hullAngle
     }
 
