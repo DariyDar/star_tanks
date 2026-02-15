@@ -58,11 +58,18 @@ export class SocketHandler {
 
     const mapData = compressMap(room.mapDefinition)
 
+    // binary join payload: include assigned index, star positions and tank metadata
+    const tankIndex = room.getIndexMap().getIndex(socket.id)
+    const tankMeta = room.getTankMeta()
+
     socket.emit(SERVER_EVENTS.JOINED, {
       roomId: room.roomId,
       playerId: socket.id,
       mapId: room.mapId,
-      mapData
+      mapData,
+      tankIndex,
+      starPositions: room.starPositions,
+      tankMeta
     })
 
     this.io.to(room.roomId).emit(SERVER_EVENTS.PLAYER_JOINED, {

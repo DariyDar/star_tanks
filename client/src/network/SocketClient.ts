@@ -6,6 +6,7 @@ import type {
   ServerGameOverPayload, ServerPongPayload
 } from '@shared/protocol.js'
 import { CLIENT_EVENTS, SERVER_EVENTS } from '@shared/protocol.js'
+import { decode as decodeBinary } from '@shared/binary/BinaryDecoder.js'
 import { SERVER_URL } from '../config.js'
 
 export interface SocketCallbacks {
@@ -32,8 +33,19 @@ export class SocketClient {
       callbacks.onJoined(payload)
     })
 
-    this.socket.on(SERVER_EVENTS.STATE, (payload: ServerStatePayload) => {
-      callbacks.onState(payload)
+    this.socket.on(SERVER_EVENTS.STATE, (payload: ArrayBuffer | ServerStatePayload) => {
+      // detect binary payload
+      if (payload instanceof ArrayBuffer) {
+        try {
+          const decoded = decodeBinary(payload)
+          callbacks.onState(decoded)
+          return
+        } catch (e) {
+          // fallthrough to JSON handler
+        }
+      }
+
+      callbacks.onState(payload as ServerStatePayload)
     })
 
     this.socket.on(SERVER_EVENTS.KILL, (payload: ServerKillPayload) => {

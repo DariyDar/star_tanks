@@ -20,10 +20,17 @@ export class RoomManager {
 
     const roomId = `room_${roomIdCounter++}`
     const events: GameRoomEvents = {
-      onStateUpdate: (state) => {
-        this.io.to(roomId).emit('server:state', state)
+      onStateUpdate: (state, room) => {
+        try {
+          const buf = room.buildBinaryState(state.tick, state.timeElapsed)
+          this.io.to(roomId).emit('server:state', buf)
+        } catch (e) {
+          // fallback to JSON
+          this.io.to(roomId).emit('server:state', state)
+        }
       },
       onKill: (deadId, deadName, killerId, killerName) => {
+        // keep kill as JSON for now
         this.io.to(roomId).emit('server:kill', { deadId, deadName, killerId, killerName })
       },
       onPortalExit: (playerId, playerName, stars) => {

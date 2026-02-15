@@ -19,7 +19,7 @@ import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
 import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
 
 export interface GameRoomEvents {
-  onStateUpdate: (state: GameState) => void
+  onStateUpdate: (state: GameState, room: GameRoom) => void
   onKill: (deadId: string, deadName: string, killerId: string, killerName: string) => void
   onPortalExit: (playerId: string, playerName: string, stars: number) => void
   onGameOver: (leaderboard: LeaderboardEntry[]) => void
@@ -219,7 +219,7 @@ export class GameRoom {
 
     // 10. Broadcast state
     const state = this.buildGameState(tickNum, elapsed)
-    this.events.onStateUpdate(state)
+    this.events.onStateUpdate(state, this)
   }
 
   private buildGameState(tick: number, timeElapsed: number): GameState {
@@ -261,6 +261,14 @@ export class GameRoom {
 
   get starPositions() {
     return this.map.starPositions
+  }
+
+  getTankMeta(): Array<{ index: number; id: string; name: string; color: string }> {
+    const all = this.indexMap.getAll()
+    return all.map(({ id, index }) => {
+      const t = this.playerManager.getTank(id)
+      return { index, id, name: t?.name ?? id, color: t?.color ?? '#ffffff' }
+    })
   }
 
   stop(): void {
