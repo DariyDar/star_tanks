@@ -22,6 +22,7 @@ const MIN_PATROL_DISTANCE = 30  // Minimum distance for patrol targets
 const BOT_REPULSION_RANGE = 4  // Bots avoid each other if closer than this
 const BOT_REPULSION_STRENGTH = 2.0  // How strongly bots repel each other
 const MAX_BOTS_PER_TARGET = 3  // Maximum bots that can target the same player
+const STEALTH_REVEAL_DISTANCE = 3  // Bots can only see tanks in bushes within this distance
 
 export class BotController {
   private bots = new Map<string, BotData>()
@@ -149,11 +150,15 @@ export class BotController {
       const dist = distance(tank.position, richestPlayer.position)
       const currentTargetCount = targetCounts.get(richestPlayer.id) || 0
 
+      // Stealth check: if player is in bush, only chase if very close
+      const canSeePlayer = !richestPlayer.inBush || dist <= STEALTH_REVEAL_DISTANCE
+
       // Can attack if:
       // 1. Already targeting this player, OR
       // 2. Less than MAX_BOTS_PER_TARGET are targeting them, AND
-      // 3. Player is in range
-      if (dist < CHASE_RANGE) {
+      // 3. Player is in range, AND
+      // 4. Bot can see the player (not hidden in bush or close enough)
+      if (dist < CHASE_RANGE && canSeePlayer) {
         if (data.targetPlayerId === richestPlayer.id || currentTargetCount < MAX_BOTS_PER_TARGET) {
           // Start targeting
           if (data.targetPlayerId !== richestPlayer.id) {
@@ -221,7 +226,7 @@ export class BotController {
       return data.lastAimAngle || tank.hullAngle
     }
 
-    // Find nearest player
+    // Find nearest visible player (not hidden in bush or close enough to see)
     let nearestPlayer: Tank | null = null
     let nearestDistSq = Infinity
 
@@ -229,8 +234,12 @@ export class BotController {
       const dx = player.position.x - tank.position.x
       const dy = player.position.y - tank.position.y
       const distSq = dx * dx + dy * dy
+      const dist = Math.sqrt(distSq)
 
-      if (distSq < nearestDistSq) {
+      // Stealth check: if player is in bush, only aim if very close
+      const canSeePlayer = !player.inBush || dist <= STEALTH_REVEAL_DISTANCE
+
+      if (canSeePlayer && distSq < nearestDistSq) {
         nearestDistSq = distSq
         nearestPlayer = player
       }
