@@ -49,7 +49,7 @@ export const TICK_MS = 1000 / TICK_RATE
 export const MAX_PLAYERS = 30
 
 // Network
-export const INTERPOLATION_DELAY = 20  // Reduced from 100ms to 20ms for instant response
+export const INTERPOLATION_DELAY = 0  // Instant response - no delay
 
 // Brick HP - takes 3 hits to destroy for more strategic gameplay
 export const BRICK_HP = 3

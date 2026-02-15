@@ -118,11 +118,14 @@ export class GameRoom {
     this.now = Date.now()
     const elapsed = this.now - this.startTime
 
-    // 1. Process player inputs
+    // 1. Process player inputs (use latest input only to prevent lag)
     for (const tank of this.playerManager.getAllTanks()) {
       if (tank.isBot) continue
-      const input = this.playerManager.consumeInput(tank.id)
+      const input = this.playerManager.peekLastInput(tank.id)
       if (input) {
+        // Clear queue to prevent input accumulation
+        this.playerManager.clearInputQueue(tank.id)
+
         this.physics.moveTank(tank, input.moveAngle, this.playerManager.getAllTanks())
         tank.turretAngle = input.aimAngle
         // Fire if player requested

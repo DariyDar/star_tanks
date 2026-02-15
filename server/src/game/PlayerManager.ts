@@ -92,6 +92,13 @@ export class PlayerManager {
     return queue && queue.length > 0 ? queue[queue.length - 1] : undefined
   }
 
+  clearInputQueue(playerId: string): void {
+    const queue = this.inputQueues.get(playerId)
+    if (queue) {
+      queue.length = 0
+    }
+  }
+
   killTank(tankId: string, killerId: string | null): number {
     const tank = this.tanks.get(tankId)
     if (!tank || !tank.isAlive) return 0

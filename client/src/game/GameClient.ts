@@ -136,12 +136,12 @@ export class GameClient {
         const dy = myTank.position.y - this.predictedPos.y
         const dist = Math.sqrt(dx * dx + dy * dy)
 
-        if (dist > 3) {
+        if (dist > 5) {
           // Teleport: large desync (portal, respawn)
           this.predictedPos = { ...myTank.position }
-        } else if (dist > 0.05) {
-          // Gentle blend toward server position — lower = smoother
-          const blendFactor = 0.15
+        } else if (dist > 0.1) {
+          // Very gentle blend to prevent rubber banding
+          const blendFactor = 0.08  // Even softer blending
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor
         }
