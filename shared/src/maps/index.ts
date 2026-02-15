@@ -19,7 +19,7 @@ export function getMap(id: MapId): MapDefinition {
 }
 
 export const MAP_INFO: Array<{ id: MapId; name: string; description: string; botCount: number }> = [
-  { id: 'lakes', name: 'Озёра', description: 'Природный ландшафт с озёрами', botCount: 10 },
-  { id: 'megapolis', name: 'Мегаполис', description: 'Городские кварталы и улицы', botCount: 5 },
+  { id: 'lakes', name: 'Озёра', description: 'Природный ландшафт с озёрами', botCount: 0 },
+  { id: 'megapolis', name: 'Мегаполис', description: 'Городские кварталы и улицы', botCount: 0 },
   { id: 'village', name: 'Село', description: 'Деревня с полями и речкой', botCount: 0 }
 ]
