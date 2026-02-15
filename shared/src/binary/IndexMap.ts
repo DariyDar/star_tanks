@@ -1,49 +1,81 @@
+/**
+ * IndexMap manages bidirectional mapping between tank IDs (strings) and binary indices (uint8)
+ * Supports up to 255 tanks (though game max is 30)
+ */
 export class IndexMap {
   private idToIndex = new Map<string, number>()
-  private indexToId: Array<string | null>
-  private max: number
+  private indexToId = new Map<number, string>()
+  private freeIndices: number[] = []
+  private nextIndex = 0
 
-  constructor(max = 30) {
-    this.max = max
-    this.indexToId = new Array(max).fill(null)
-  }
-
+  /**
+   * Assigns a binary index to a tank ID
+   * @param id Tank ID (socket.id or bot_N)
+   * @returns Assigned index (0-254)
+   */
   assign(id: string): number {
-    if (this.idToIndex.has(id)) return this.idToIndex.get(id) as number
-    for (let i = 0; i < this.max; i++) {
-      if (this.indexToId[i] === null) {
-        this.indexToId[i] = id
-        this.idToIndex.set(id, i)
-        return i
+    if (this.idToIndex.has(id)) {
+      return this.idToIndex.get(id)!
+    }
+
+    let index: number
+    if (this.freeIndices.length > 0) {
+      index = this.freeIndices.pop()!
+    } else {
+      if (this.nextIndex > 254) {
+        throw new Error('IndexMap: No free indices available (max 255)')
       }
+      index = this.nextIndex++
     }
-    throw new Error('No free index')
+
+    this.idToIndex.set(id, index)
+    this.indexToId.set(index, id)
+    return index
   }
 
+  /**
+   * Releases an index when a tank leaves
+   * @param id Tank ID to release
+   */
   release(id: string): void {
-    const idx = this.idToIndex.get(id)
-    if (idx === undefined) return
+    const index = this.idToIndex.get(id)
+    if (index === undefined) return
+
     this.idToIndex.delete(id)
-    this.indexToId[idx] = null
+    this.indexToId.delete(index)
+    this.freeIndices.push(index)
   }
 
-  getIndex(id: string): number {
-    return this.idToIndex.get(id) ?? -1
+  /**
+   * Gets the index for a tank ID
+   * @param id Tank ID
+   * @returns Index or undefined if not found
+   */
+  getIndex(id: string): number | undefined {
+    return this.idToIndex.get(id)
   }
 
-  getId(index: number): string | null {
-    if (index < 0 || index >= this.max) return null
-    return this.indexToId[index]
+  /**
+   * Gets the tank ID for an index
+   * @param index Binary index
+   * @returns Tank ID or undefined if not found
+   */
+  getId(index: number): string | undefined {
+    return this.indexToId.get(index)
   }
 
+  /**
+   * Gets all current mappings
+   * @returns Array of {id, index} objects
+   */
   getAll(): Array<{ id: string; index: number }> {
-    const out: Array<{ id: string; index: number }> = []
-    for (let i = 0; i < this.indexToId.length; i++) {
-      const id = this.indexToId[i]
-      if (id !== null) out.push({ id, index: i })
-    }
-    return out
+    return Array.from(this.idToIndex.entries()).map(([id, index]) => ({ id, index }))
+  }
+
+  /**
+   * Gets the number of active mappings
+   */
+  get size(): number {
+    return this.idToIndex.size
   }
 }
-
-export default IndexMap

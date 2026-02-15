@@ -3,10 +3,11 @@ import type {
   ClientJoinPayload, ClientInputPayload,
   ServerJoinedPayload, ServerStatePayload,
   ServerKillPayload, ServerPortalExitPayload,
-  ServerGameOverPayload, ServerPongPayload
+  ServerGameOverPayload, ServerPongPayload,
+  ServerJoinedPayloadBinary
 } from '@shared/protocol.js'
 import { CLIENT_EVENTS, SERVER_EVENTS } from '@shared/protocol.js'
-import { decode as decodeBinary } from '@shared/binary/BinaryDecoder.js'
+import { BinaryDecoder, type TankMeta } from '@shared/binary/BinaryDecoder.js'
 import { SERVER_URL } from '../config.js'
 
 export interface SocketCallbacks {
@@ -22,6 +23,7 @@ export interface SocketCallbacks {
 export class SocketClient {
   private socket: Socket
   private latency = 0
+  private decoder: BinaryDecoder | null = null
 
   constructor(callbacks: SocketCallbacks) {
     this.socket = io(SERVER_URL, {
@@ -30,16 +32,32 @@ export class SocketClient {
     })
 
     this.socket.on(SERVER_EVENTS.JOINED, (payload: ServerJoinedPayload) => {
+      // Initialize binary decoder if payload contains binary metadata
+      const binaryPayload = payload as ServerJoinedPayloadBinary
+      if (binaryPayload.starPositions && binaryPayload.tankMeta) {
+        const tankMetaMap = new Map<number, TankMeta>()
+        for (const meta of binaryPayload.tankMeta) {
+          tankMetaMap.set(meta.index, {
+            id: meta.id,
+            name: meta.name,
+            color: meta.color
+          })
+        }
+        this.decoder = new BinaryDecoder(binaryPayload.starPositions, tankMetaMap)
+      }
+
       callbacks.onJoined(payload)
     })
 
     this.socket.on(SERVER_EVENTS.STATE, (payload: ArrayBuffer | ServerStatePayload) => {
       // detect binary payload
-      if (payload instanceof ArrayBuffer) {
+      if (payload instanceof ArrayBuffer && this.decoder) {
         try {
-          const decoded = decodeBinary(payload)
-          callbacks.onState(decoded)
-          return
+          const decoded = this.decoder.decode(payload)
+          if (decoded.type === 'fullState') {
+            callbacks.onState(decoded.state)
+            return
+          }
         } catch (e) {
           // fallthrough to JSON handler
         }
