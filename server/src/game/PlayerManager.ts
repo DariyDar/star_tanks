@@ -35,7 +35,7 @@ export class PlayerManager {
     let speed = isBot ? BOT_SPEED : TANK_SPEED
 
     if (isBoss) {
-      initialMaxHp = 500  // Boss has 500 HP
+      initialMaxHp = 100  // Boss has 100 HP
       tankRadius = 1.35   // Boss is 3x larger (FIXED - doesn't grow with stars)
       speed = TANK_SPEED * 1.1  // 10% faster than player
       tankColor = '#8B0000'  // Dark red for boss
