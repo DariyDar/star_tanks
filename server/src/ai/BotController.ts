@@ -62,15 +62,6 @@ export class BotController {
       ? players.reduce((richest, player) => player.stars > richest.stars ? player : richest)
       : null
 
-    let botsTargetingRichest = 0
-    if (richestPlayer) {
-      for (const data of this.bots.values()) {
-        if (data.targetId === richestPlayer.id) {
-          botsTargetingRichest++
-        }
-      }
-    }
-
     for (const tank of tanks) {
       if (!tank.isBot || !tank.isAlive) continue
 
@@ -80,28 +71,34 @@ export class BotController {
         data = this.bots.get(tank.id)!
       }
 
+      // Count bots targeting richest BEFORE this bot's decision
+      let botsTargetingRichest = 0
+      if (richestPlayer) {
+        for (const otherData of this.bots.values()) {
+          if (otherData.targetId === richestPlayer.id && otherData.state === 'chase') {
+            botsTargetingRichest++
+          }
+        }
+      }
+
       const moveAngle = this.updateBot(tank, data, tanks, stars, powerUps, zone, now, richestPlayer, botsTargetingRichest)
       const aimAngle = this.calculateAimAngle(tank, data, tanks)
 
       data.lastAimAngle = aimAngle
       moves.set(tank.id, { moveAngle, aimAngle })
-
-      if (richestPlayer && data.targetId === richestPlayer.id && data.state === 'chase') {
-        botsTargetingRichest++
-      }
     }
 
     return moves
   }
 
   private calculateAimAngle(tank: Tank, data: BotData, tanks: Tank[]): number {
-    // Aim at the closest enemy (prefer players over bots)
+    // ONLY aim at players, NEVER at other bots
     let bestTarget: Tank | null = null
     let bestDistSq = Infinity
 
     for (const other of tanks) {
       if (!other.isAlive || other.id === tank.id) continue
-      if (other.isBot) continue // Prefer aiming at players
+      if (other.isBot) continue // NEVER aim at bots
 
       const dx = other.position.x - tank.position.x
       const dy = other.position.y - tank.position.y
@@ -113,28 +110,13 @@ export class BotController {
       }
     }
 
-    // Fallback: aim at any alive non-self tank
-    if (!bestTarget) {
-      for (const other of tanks) {
-        if (!other.isAlive || other.id === tank.id) continue
-        const dx = other.position.x - tank.position.x
-        const dy = other.position.y - tank.position.y
-        const distSq = dx * dx + dy * dy
-
-        if (distSq < bestDistSq) {
-          bestDistSq = distSq
-          bestTarget = other
-        }
-      }
-    }
-
     if (bestTarget) {
       const dx = bestTarget.position.x - tank.position.x
       const dy = bestTarget.position.y - tank.position.y
       return vecToAngle(dx, dy)
     }
 
-    // No target — aim in movement direction or keep last aim
+    // No player target — just keep last aim direction
     return data.lastAimAngle
   }
 
@@ -149,6 +131,36 @@ export class BotController {
     richestPlayer: Tank | null,
     botsTargetingRichest: number
   ): number | null {
+    // Priority 0: Anti-clustering - flee from nearby bots
+    const nearbyBots = tanks.filter(t =>
+      t.isBot && t.isAlive && t.id !== tank.id &&
+      distance(tank.position, t.position) < 3  // Very close - within 3 cells
+    )
+
+    if (nearbyBots.length >= 2) {
+      // Too many bots nearby - calculate repulsion vector
+      let repulsionX = 0
+      let repulsionY = 0
+
+      for (const other of nearbyBots) {
+        const dx = tank.position.x - other.position.x
+        const dy = tank.position.y - other.position.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist > 0.1) {
+          // Push away from this bot
+          repulsionX += dx / dist
+          repulsionY += dy / dist
+        }
+      }
+
+      // Move in repulsion direction
+      if (Math.abs(repulsionX) > 0.1 || Math.abs(repulsionY) > 0.1) {
+        data.state = 'patrol'
+        data.targetId = null
+        return vecToAngle(repulsionX, repulsionY)
+      }
+    }
+
     // Priority 1: Flee zone
     const distToCenter = distance(tank.position, { x: zone.centerX, y: zone.centerY })
     if (distToCenter > zone.currentRadius - ZONE_MARGIN) {
