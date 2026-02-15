@@ -59,12 +59,12 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Brick walls (scattered) - increased for more combat
-  for (let i = 0; i < 40; i++) {
+  // Brick walls (scattered) - massive increase for maze-like gameplay
+  for (let i = 0; i < 100; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 2, 6)
+    const len = rngInt(rng, 3, 8)  // Longer walls
 
     for (let j = 0; j < len; j++) {
       if (horizontal) addObstacle(x + j, y, ObstacleType.Brick)
@@ -72,11 +72,11 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Steel boulders - increased for more cover
-  for (let i = 0; i < 20; i++) {
+  // Steel boulders - increased for permanent cover
+  for (let i = 0; i < 40; i++) {
     const cx = rngInt(rng, 10, MAP_WIDTH - 10)
     const cy = rngInt(rng, 10, MAP_HEIGHT - 10)
-    const size = rngInt(rng, 1, 2)
+    const size = rngInt(rng, 2, 4)  // Bigger steel obstacles
 
     for (let dy = 0; dy < size; dy++) {
       for (let dx = 0; dx < size; dx++) {

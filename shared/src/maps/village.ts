@@ -50,9 +50,9 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Village houses (brick, small, scattered in clusters) - more villages
+  // Village houses (brick, small, scattered in clusters) - dense villages
   const villageCenters: Vec2[] = []
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {  // More village centers
     villageCenters.push({
       x: rngInt(rng, 20, MAP_WIDTH - 20),
       y: rngInt(rng, 20, MAP_HEIGHT - 20)
@@ -60,7 +60,7 @@ export function generateVillageMap(): MapDefinition {
   }
 
   for (const center of villageCenters) {
-    const houseCount = rngInt(rng, 3, 6)  // More houses per village
+    const houseCount = rngInt(rng, 5, 9)  // Many houses per village
 
     for (let h = 0; h < houseCount; h++) {
       const hx = center.x + rngInt(rng, -10, 10)
@@ -143,12 +143,12 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Scattered brick walls - more destructible walls
-  for (let i = 0; i < 20; i++) {
+  // Scattered brick walls - massive increase for maze gameplay
+  for (let i = 0; i < 60; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 2, 5)
+    const len = rngInt(rng, 4, 8)  // Longer walls
 
     for (let j = 0; j < len; j++) {
       if (horizontal) addObstacle(x + j, y, ObstacleType.Brick)

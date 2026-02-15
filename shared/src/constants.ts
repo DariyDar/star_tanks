@@ -46,8 +46,8 @@ export const MAX_PLAYERS = 30
 // Network
 export const INTERPOLATION_DELAY = 20  // Reduced from 100ms to 20ms for instant response
 
-// Brick HP
-export const BRICK_HP = 1
+// Brick HP - takes 3 hits to destroy for more strategic gameplay
+export const BRICK_HP = 3
 
 // Tank colors
 export const TANK_COLORS = [

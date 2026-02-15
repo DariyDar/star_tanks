@@ -40,14 +40,14 @@ export function generateMegapolisMap(): MapDefinition {
       const startX = 5 + bx * (blockSize + streetWidth)
       const startY = 5 + by * (blockSize + streetWidth)
 
-      if (rng() < 0.15) continue  // Reduced skip chance for more obstacles
+      if (rng() < 0.05) continue  // Very dense city - almost no empty blocks
 
       const buildingType = rng()
 
       if (buildingType < 0.45) {
-        // Hollow brick building
-        const w = rngInt(rng, 5, 9)
-        const h = rngInt(rng, 5, 8)
+        // Hollow brick building - larger for maze effect
+        const w = rngInt(rng, 7, 11)
+        const h = rngInt(rng, 7, 10)
         const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
         const oy = startY + rngInt(rng, 0, Math.max(0, blockSize - h))
 
