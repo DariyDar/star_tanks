@@ -16,6 +16,8 @@ interface BotData {
 const RECALC_INTERVAL = 500
 const CHASE_RANGE = 15
 const ZONE_MARGIN = 10
+const MAX_BOTS_PER_RICH_TARGET = 3  // Maximum bots that can gang up on richest player
+const RICH_TARGET_RANGE = 30  // Range within which bots will chase richest player
 
 export class BotController {
   private bots = new Map<string, BotData>()
@@ -49,6 +51,22 @@ export class BotController {
   ): Map<string, Direction | null> {
     const moves = new Map<string, Direction | null>()
 
+    // Find richest player (not bot) for coordinated aggression
+    const players = tanks.filter(t => t.isAlive && !t.isBot)
+    const richestPlayer = players.length > 0
+      ? players.reduce((richest, player) => player.stars > richest.stars ? player : richest)
+      : null
+
+    // Count how many bots are already targeting the richest player
+    let botsTargetingRichest = 0
+    if (richestPlayer) {
+      for (const data of this.bots.values()) {
+        if (data.targetId === richestPlayer.id) {
+          botsTargetingRichest++
+        }
+      }
+    }
+
     for (const tank of tanks) {
       if (!tank.isBot || !tank.isAlive) continue
 
@@ -58,8 +76,13 @@ export class BotController {
         data = this.bots.get(tank.id)!
       }
 
-      const move = this.updateBot(tank, data, tanks, stars, powerUps, zone, now)
+      const move = this.updateBot(tank, data, tanks, stars, powerUps, zone, now, richestPlayer, botsTargetingRichest)
       moves.set(tank.id, move)
+
+      // Update counter if this bot started targeting the richest player
+      if (richestPlayer && data.targetId === richestPlayer.id && data.state === 'chase') {
+        botsTargetingRichest++
+      }
     }
 
     return moves
@@ -72,7 +95,9 @@ export class BotController {
     stars: Star[],
     powerUps: PowerUp[],
     zone: Zone,
-    now: number
+    now: number,
+    richestPlayer: Tank | null,
+    botsTargetingRichest: number
   ): Direction | null {
     // Priority 1: Flee zone
     const distToCenter = distance(tank.position, { x: zone.centerX, y: zone.centerY })
@@ -81,7 +106,21 @@ export class BotController {
       return this.moveToward(tank, data, { x: zone.centerX, y: zone.centerY }, now)
     }
 
-    // Priority 2: Chase nearby PLAYERS (not other bots)
+    // Priority 2: Coordinated aggression on richest player
+    // Gang up on the richest player if they have significant stars and not too many bots are chasing
+    if (richestPlayer && richestPlayer.stars >= 5) {
+      const distToRichest = distance(tank.position, richestPlayer.position)
+
+      // If this bot is already chasing the richest or if we can add another bot to the hunt
+      if ((data.targetId === richestPlayer.id) ||
+          (botsTargetingRichest < MAX_BOTS_PER_RICH_TARGET && distToRichest < RICH_TARGET_RANGE)) {
+        data.state = 'chase'
+        data.targetId = richestPlayer.id
+        return this.moveToward(tank, data, richestPlayer.position, now)
+      }
+    }
+
+    // Priority 3: Chase nearby PLAYERS (not other bots) - standard behavior
     const enemies = tanks.filter(t =>
       t.isAlive && t.id !== tank.id && !t.isBot &&  // Only chase players, not bots
       distance(tank.position, t.position) < CHASE_RANGE
@@ -95,8 +134,9 @@ export class BotController {
       return this.moveToward(tank, data, target.position, now)
     }
 
-    // Priority 3: Patrol
+    // Priority 4: Patrol
     data.state = 'patrol'
+    data.targetId = null  // Clear target when patrolling
     return this.patrol(tank, data, now)
   }
 
