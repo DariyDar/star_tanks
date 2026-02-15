@@ -12,7 +12,6 @@ import {
   POWERUP_DATA_SIZE,
   PORTAL_DATA_SIZE,
   LEADERBOARD_ENTRY_SIZE,
-  directionToNumber,
   phaseToNumber,
   powerUpToNumber
 } from './BinaryProtocol.js'
@@ -110,7 +109,8 @@ function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexM
   view.setUint8(offset, index); offset += 1
   view.setFloat32(offset, tank.position.x, true); offset += 4
   view.setFloat32(offset, tank.position.y, true); offset += 4
-  view.setUint8(offset, directionToNumber(tank.direction)); offset += 1
+  view.setFloat32(offset, tank.hullAngle, true); offset += 4
+  view.setFloat32(offset, tank.turretAngle, true); offset += 4
   view.setUint8(offset, tank.hp); offset += 1
   view.setUint8(offset, tank.maxHp); offset += 1
   view.setUint16(offset, tank.stars, true); offset += 2
@@ -135,7 +135,7 @@ function encodeBullet(view: DataView, offset: number, bullet: Bullet, indexMap: 
   view.setUint8(offset, ownerIndex); offset += 1
   view.setFloat32(offset, bullet.position.x, true); offset += 4
   view.setFloat32(offset, bullet.position.y, true); offset += 4
-  view.setUint8(offset, directionToNumber(bullet.direction)); offset += 1
+  view.setFloat32(offset, bullet.angle, true); offset += 4
   view.setUint8(offset, Math.round(bullet.distanceTraveled)); offset += 1
 
   return offset

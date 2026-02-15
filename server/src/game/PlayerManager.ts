@@ -1,5 +1,5 @@
 import {
-  type Tank, type Vec2, type PlayerInput, Direction, PowerUpType
+  type Tank, type Vec2, type PlayerInput, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
   TANK_HP, BOT_HP, TANK_SPEED, BOT_SPEED, TANK_COLORS
@@ -33,7 +33,8 @@ export class PlayerManager {
       id,
       name,
       position: { x: spawn.x, y: spawn.y },
-      direction: Direction.Up,
+      hullAngle: 0,
+      turretAngle: 0,
       hp: isBot ? BOT_HP : TANK_HP,
       maxHp: isBot ? BOT_HP : TANK_HP,
       stars: 0,
@@ -86,6 +87,11 @@ export class PlayerManager {
     return queue?.shift()
   }
 
+  peekLastInput(playerId: string): PlayerInput | undefined {
+    const queue = this.inputQueues.get(playerId)
+    return queue && queue.length > 0 ? queue[queue.length - 1] : undefined
+  }
+
   killTank(tankId: string, killerId: string | null): number {
     const tank = this.tanks.get(tankId)
     if (!tank || !tank.isAlive) return 0
@@ -113,7 +119,8 @@ export class PlayerManager {
     this.spawnIndex++
 
     tank.position = { x: spawn.x, y: spawn.y }
-    tank.direction = Direction.Up
+    tank.hullAngle = 0
+    tank.turretAngle = 0
     tank.hp = tank.isBot ? BOT_HP : TANK_HP
     tank.isAlive = true
     tank.activePowerUp = null

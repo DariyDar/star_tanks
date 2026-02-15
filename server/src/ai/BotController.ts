@@ -1,23 +1,28 @@
 import type { Tank, Star, PowerUp, Portal, Zone, Vec2 } from '@tank-br/shared/types.js'
-import { Direction } from '@tank-br/shared/types.js'
-import { distance, vecToDirection } from '@tank-br/shared/math.js'
+import { distance, vecToAngle } from '@tank-br/shared/math.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { findPath } from './Pathfinding.js'
 
 type BotState = 'patrol' | 'chase' | 'fleeZone'
+
+export interface BotMoveResult {
+  moveAngle: number | null
+  aimAngle: number
+}
 
 interface BotData {
   state: BotState
   path: Vec2[]
   pathRecalcAt: number
   targetId: string | null
+  lastAimAngle: number
 }
 
 const RECALC_INTERVAL = 500
 const CHASE_RANGE = 15
 const ZONE_MARGIN = 10
-const MAX_BOTS_PER_RICH_TARGET = 3  // Maximum bots that can gang up on richest player
-const RICH_TARGET_RANGE = 30  // Range within which bots will chase richest player
+const MAX_BOTS_PER_RICH_TARGET = 3
+const RICH_TARGET_RANGE = 30
 
 export class BotController {
   private bots = new Map<string, BotData>()
@@ -33,7 +38,8 @@ export class BotController {
       state: 'patrol',
       path: [],
       pathRecalcAt: 0,
-      targetId: null
+      targetId: null,
+      lastAimAngle: 0
     })
   }
 
@@ -48,16 +54,14 @@ export class BotController {
     portals: Portal[],
     zone: Zone,
     now: number
-  ): Map<string, Direction | null> {
-    const moves = new Map<string, Direction | null>()
+  ): Map<string, BotMoveResult> {
+    const moves = new Map<string, BotMoveResult>()
 
-    // Find richest player (not bot) for coordinated aggression
     const players = tanks.filter(t => t.isAlive && !t.isBot)
     const richestPlayer = players.length > 0
       ? players.reduce((richest, player) => player.stars > richest.stars ? player : richest)
       : null
 
-    // Count how many bots are already targeting the richest player
     let botsTargetingRichest = 0
     if (richestPlayer) {
       for (const data of this.bots.values()) {
@@ -76,16 +80,62 @@ export class BotController {
         data = this.bots.get(tank.id)!
       }
 
-      const move = this.updateBot(tank, data, tanks, stars, powerUps, zone, now, richestPlayer, botsTargetingRichest)
-      moves.set(tank.id, move)
+      const moveAngle = this.updateBot(tank, data, tanks, stars, powerUps, zone, now, richestPlayer, botsTargetingRichest)
+      const aimAngle = this.calculateAimAngle(tank, data, tanks)
 
-      // Update counter if this bot started targeting the richest player
+      data.lastAimAngle = aimAngle
+      moves.set(tank.id, { moveAngle, aimAngle })
+
       if (richestPlayer && data.targetId === richestPlayer.id && data.state === 'chase') {
         botsTargetingRichest++
       }
     }
 
     return moves
+  }
+
+  private calculateAimAngle(tank: Tank, data: BotData, tanks: Tank[]): number {
+    // Aim at the closest enemy (prefer players over bots)
+    let bestTarget: Tank | null = null
+    let bestDistSq = Infinity
+
+    for (const other of tanks) {
+      if (!other.isAlive || other.id === tank.id) continue
+      if (other.isBot) continue // Prefer aiming at players
+
+      const dx = other.position.x - tank.position.x
+      const dy = other.position.y - tank.position.y
+      const distSq = dx * dx + dy * dy
+
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq
+        bestTarget = other
+      }
+    }
+
+    // Fallback: aim at any alive non-self tank
+    if (!bestTarget) {
+      for (const other of tanks) {
+        if (!other.isAlive || other.id === tank.id) continue
+        const dx = other.position.x - tank.position.x
+        const dy = other.position.y - tank.position.y
+        const distSq = dx * dx + dy * dy
+
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq
+          bestTarget = other
+        }
+      }
+    }
+
+    if (bestTarget) {
+      const dx = bestTarget.position.x - tank.position.x
+      const dy = bestTarget.position.y - tank.position.y
+      return vecToAngle(dx, dy)
+    }
+
+    // No target — aim in movement direction or keep last aim
+    return data.lastAimAngle
   }
 
   private updateBot(
@@ -98,7 +148,7 @@ export class BotController {
     now: number,
     richestPlayer: Tank | null,
     botsTargetingRichest: number
-  ): Direction | null {
+  ): number | null {
     // Priority 1: Flee zone
     const distToCenter = distance(tank.position, { x: zone.centerX, y: zone.centerY })
     if (distToCenter > zone.currentRadius - ZONE_MARGIN) {
@@ -107,11 +157,9 @@ export class BotController {
     }
 
     // Priority 2: Coordinated aggression on richest player
-    // Gang up on the richest player if they have significant stars and not too many bots are chasing
     if (richestPlayer && richestPlayer.stars >= 5) {
       const distToRichest = distance(tank.position, richestPlayer.position)
 
-      // If this bot is already chasing the richest or if we can add another bot to the hunt
       if ((data.targetId === richestPlayer.id) ||
           (botsTargetingRichest < MAX_BOTS_PER_RICH_TARGET && distToRichest < RICH_TARGET_RANGE)) {
         data.state = 'chase'
@@ -120,13 +168,12 @@ export class BotController {
       }
     }
 
-    // Priority 3: Chase nearby PLAYERS (not other bots) - standard behavior
+    // Priority 3: Chase nearby players
     const enemies = tanks.filter(t =>
-      t.isAlive && t.id !== tank.id && !t.isBot &&  // Only chase players, not bots
+      t.isAlive && t.id !== tank.id && !t.isBot &&
       distance(tank.position, t.position) < CHASE_RANGE
     )
     if (enemies.length > 0) {
-      // Target enemies with more stars first (aggressive behavior)
       const sorted = enemies.sort((a, b) => b.stars - a.stars)
       const target = sorted[0]
       data.state = 'chase'
@@ -136,40 +183,37 @@ export class BotController {
 
     // Priority 4: Patrol
     data.state = 'patrol'
-    data.targetId = null  // Clear target when patrolling
+    data.targetId = null
     return this.patrol(tank, data, now)
   }
 
-  private moveToward(tank: Tank, data: BotData, target: Vec2, now: number): Direction | null {
-    // Recalculate path periodically
+  private moveToward(tank: Tank, data: BotData, target: Vec2, now: number): number | null {
     if (now - data.pathRecalcAt > RECALC_INTERVAL || data.path.length === 0) {
       data.path = findPath(tank.position, target, this.grid, this.mapWidth, this.mapHeight)
       data.pathRecalcAt = now
     }
 
     if (data.path.length === 0) {
-      // Direct approach if no path
       const dx = target.x - tank.position.x
       const dy = target.y - tank.position.y
-      return vecToDirection(dx, dy)
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return null
+      return vecToAngle(dx, dy)
     }
 
     const next = data.path[0]
-    const dx = next.x - Math.round(tank.position.x)
-    const dy = next.y - Math.round(tank.position.y)
+    const dx = next.x - tank.position.x
+    const dy = next.y - tank.position.y
 
-    if (dx === 0 && dy === 0) {
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
       data.path.shift()
       return data.path.length > 0 ? this.moveToward(tank, data, target, now) : null
     }
 
-    return vecToDirection(dx, dy)
+    return vecToAngle(dx, dy)
   }
 
-  private patrol(tank: Tank, data: BotData, now: number): Direction | null {
-    // Set a random target if no path - spread out to avoid clustering
-    if (data.path.length === 0 || now - data.pathRecalcAt > 2000) {  // More frequent retargeting
-      // Use wider spread to prevent bots from clustering
+  private patrol(tank: Tank, data: BotData, now: number): number | null {
+    if (data.path.length === 0 || now - data.pathRecalcAt > 2000) {
       const targetX = Math.floor(Math.random() * (this.mapWidth - 40)) + 20
       const targetY = Math.floor(Math.random() * (this.mapHeight - 40)) + 20
       data.path = findPath(tank.position, { x: targetX, y: targetY }, this.grid, this.mapWidth, this.mapHeight)
@@ -177,20 +221,19 @@ export class BotController {
     }
 
     if (data.path.length === 0) {
-      // Wander randomly
-      const dirs = [Direction.Up, Direction.Down, Direction.Left, Direction.Right]
-      return dirs[Math.floor(Math.random() * dirs.length)]
+      // Random angle
+      return Math.random() * 2 * Math.PI - Math.PI
     }
 
     const next = data.path[0]
-    const dx = next.x - Math.round(tank.position.x)
-    const dy = next.y - Math.round(tank.position.y)
+    const dx = next.x - tank.position.x
+    const dy = next.y - tank.position.y
 
-    if (dx === 0 && dy === 0) {
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
       data.path.shift()
       return null
     }
 
-    return vecToDirection(dx, dy)
+    return vecToAngle(dx, dy)
   }
 }

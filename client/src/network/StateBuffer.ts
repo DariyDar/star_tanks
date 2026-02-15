@@ -1,5 +1,6 @@
 import type { GameState } from '@shared/types.js'
 import { INTERPOLATION_DELAY } from '@shared/constants.js'
+import { lerp, lerpAngle } from '@shared/math.js'
 
 export class StateBuffer {
   private buffer: GameState[] = []
@@ -32,10 +33,43 @@ export class StateBuffer {
       return this.buffer[this.buffer.length - 1]
     }
 
-    // For grid-based movement, interpolation is simple: use the latest state
-    // Tanks snap to grid cells, so smooth interpolation isn't needed
     const t = (renderTime - prev.timestamp) / (next.timestamp - prev.timestamp)
-    return t > 0.5 ? next : prev
+
+    // Interpolate tank positions and angles
+    const interpolatedTanks = next.tanks.map(nextTank => {
+      const prevTank = prev!.tanks.find(pt => pt.id === nextTank.id)
+      if (!prevTank) return nextTank
+
+      return {
+        ...nextTank,
+        position: {
+          x: lerp(prevTank.position.x, nextTank.position.x, t),
+          y: lerp(prevTank.position.y, nextTank.position.y, t)
+        },
+        hullAngle: lerpAngle(prevTank.hullAngle, nextTank.hullAngle, t),
+        turretAngle: lerpAngle(prevTank.turretAngle, nextTank.turretAngle, t)
+      }
+    })
+
+    // Interpolate bullet positions
+    const interpolatedBullets = next.bullets.map(nextBullet => {
+      const prevBullet = prev!.bullets.find(pb => pb.id === nextBullet.id)
+      if (!prevBullet) return nextBullet
+
+      return {
+        ...nextBullet,
+        position: {
+          x: lerp(prevBullet.position.x, nextBullet.position.x, t),
+          y: lerp(prevBullet.position.y, nextBullet.position.y, t)
+        }
+      }
+    })
+
+    return {
+      ...next,
+      tanks: interpolatedTanks,
+      bullets: interpolatedBullets
+    }
   }
 
   clear(): void {

@@ -3,7 +3,6 @@ import {
   MSG_LEADERBOARD,
   MSG_KILL,
   MSG_PORTAL_EXIT,
-  numberToDirection,
   numberToPhase,
   numberToPowerUp
 } from './BinaryProtocol.js'
@@ -216,13 +215,14 @@ export class BinaryDecoder {
   }
 
   /**
-   * Decode a single Tank (24 bytes)
+   * Decode a single Tank (30 bytes)
    *
    * Format:
    * - 1B index
    * - 4B x (float32)
    * - 4B y (float32)
-   * - 1B direction (numeric)
+   * - 4B hullAngle (float32)
+   * - 4B turretAngle (float32)
    * - 1B hp
    * - 1B maxHp
    * - 2B stars
@@ -236,7 +236,8 @@ export class BinaryDecoder {
     const index = this.readUint8()
     const x = this.readFloat32()
     const y = this.readFloat32()
-    const dirNum = this.readUint8()
+    const hullAngle = this.readFloat32()
+    const turretAngle = this.readFloat32()
     const hp = this.readUint8()
     const maxHp = this.readUint8()
     const stars = this.readUint16()
@@ -246,19 +247,14 @@ export class BinaryDecoder {
     const powerUpEndTime = this.readFloat32()
     const fireCooldown = this.readUint16()
 
-    const direction = numberToDirection(dirNum)
     const isAlive = (flags & 0x01) !== 0
     const isBot = (flags & 0x02) !== 0
 
-    // Determine active power-up from endTime
     let activePowerUp: PowerUpType | null = null
     if (powerUpEndTime > 0) {
-      // In a full implementation, we'd need to track the power-up type
-      // For now, assume RapidFire (this would come from a separate field in full protocol)
       activePowerUp = PowerUpType.RapidFire
     }
 
-    // Get tank metadata (name, id, color)
     const meta = this.tankMeta.get(index)
     const id = meta?.id ?? `tank-${index}`
     const name = meta?.name ?? `Player ${index}`
@@ -268,7 +264,8 @@ export class BinaryDecoder {
       id,
       name,
       position: { x, y },
-      direction,
+      hullAngle,
+      turretAngle,
       hp,
       maxHp,
       stars,
@@ -277,40 +274,36 @@ export class BinaryDecoder {
       isAlive,
       activePowerUp,
       powerUpEndTime,
-      lastFireTime: 0, // Not encoded, would be computed client-side
+      lastFireTime: 0,
       fireCooldown,
-      speed: 0, // Not encoded, use default from game config
+      speed: 0,
       color,
-      magnetRadius: 1 // Default magnet radius, would need to be encoded in full protocol
+      magnetRadius: 1
     }
   }
 
   /**
-   * Decode a single Bullet (11 bytes)
+   * Decode a single Bullet (14 bytes)
    *
    * Format:
    * - 1B id (8-bit bullet index)
    * - 4B x (float32)
    * - 4B y (float32)
-   * - 1B direction (numeric)
-   * - 1B distanceTraveled (compressed: 0-255, maps to 0-255 actual distance)
+   * - 4B angle (float32)
+   * - 1B distanceTraveled (compressed: 0-255)
    */
   private decodeBullet(): Bullet {
     const bulletId = this.readUint8()
     const x = this.readFloat32()
     const y = this.readFloat32()
-    const dirNum = this.readUint8()
+    const angle = this.readFloat32()
     const distanceTraveled = this.readUint8()
 
-    const direction = numberToDirection(dirNum)
-
-    // In a full implementation, we'd track ownerId in the protocol
-    // For now, return a placeholder
     return {
       id: `bullet-${bulletId}`,
-      ownerId: '', // Would be tracked separately
+      ownerId: '',
       position: { x, y },
-      direction,
+      angle,
       distanceTraveled
     }
   }

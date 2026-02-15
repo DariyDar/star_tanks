@@ -1,5 +1,37 @@
 import { Direction, type Vec2 } from './types.js'
 
+// Angle convention: 0 = up (-Y), PI/2 = right (+X), PI = down (+Y), -PI/2 = left (-X)
+
+export function normalizeAngle(angle: number): number {
+  let a = angle % (2 * Math.PI)
+  if (a > Math.PI) a -= 2 * Math.PI
+  if (a < -Math.PI) a += 2 * Math.PI
+  return a
+}
+
+export function angleToVec(angle: number): Vec2 {
+  return { x: Math.sin(angle), y: -Math.cos(angle) }
+}
+
+export function vecToAngle(dx: number, dy: number): number {
+  return Math.atan2(dx, -dy)
+}
+
+export function angleDiff(from: number, to: number): number {
+  return normalizeAngle(to - from)
+}
+
+export function lerpAngle(from: number, to: number, t: number): number {
+  const diff = angleDiff(from, to)
+  return normalizeAngle(from + diff * t)
+}
+
+export function distanceSq(a: Vec2, b: Vec2): number {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return dx * dx + dy * dy
+}
+
 export function distance(a: Vec2, b: Vec2): number {
   const dx = a.x - b.x
   const dy = a.y - b.y

@@ -33,14 +33,14 @@ export class PortalManager {
 
   checkPortalEntry(tanks: Tank[]): Array<{ tank: Tank; portal: Portal }> {
     const entries: Array<{ tank: Tank; portal: Portal }> = []
+    const PORTAL_ENTRY_RADIUS_SQ = 1.0 * 1.0
 
     for (const portal of this.portals) {
       for (const tank of tanks) {
         if (!tank.isAlive) continue
-        if (
-          Math.round(tank.position.x) === portal.position.x &&
-          Math.round(tank.position.y) === portal.position.y
-        ) {
+        const dx = tank.position.x - portal.position.x
+        const dy = tank.position.y - portal.position.y
+        if (dx * dx + dy * dy < PORTAL_ENTRY_RADIUS_SQ) {
           entries.push({ tank, portal })
         }
       }

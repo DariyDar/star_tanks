@@ -10,6 +10,7 @@ import { LobbyScreen } from './ui/LobbyScreen.js'
 const canvas = document.getElementById('game') as HTMLCanvasElement
 const client = new GameClient()
 const input = new InputManager()
+input.setCanvas(canvas)
 const renderer = new Renderer(canvas)
 const stateBuffer = new StateBuffer()
 const resultScreen = new ResultScreen(canvas)
@@ -136,11 +137,18 @@ function gameLoop(now: number) {
   lastFrameTime = now
 
   if (joined && !resultScreen.isVisible && !lobby.isVisible) {
-    const moveDir = input.getMoveDirection()
-    const aimDir = input.getAimDirection()
+    // Update camera/position for mouse→world conversion
+    input.updateCamera(client.camera.x, client.camera.y, renderer.currentCellPx)
+    const myPos = client.getMyDisplayPosition()
+    if (myPos) {
+      input.updateMyPosition(myPos.x, myPos.y)
+    }
+
+    const moveAngle = input.getMoveAngle()
+    const aimAngle = input.getAimAngle()
 
     // Apply input locally for instant response
-    client.applyLocalInput(moveDir, dt)
+    client.applyLocalInput(moveAngle, aimAngle, dt)
 
     // Send input to server at fixed rate
     inputSendTimer += dt * 1000
@@ -149,8 +157,8 @@ function gameLoop(now: number) {
       socket.sendInput({
         tick: client.state?.tick ?? 0,
         sequenceNumber: sequenceNumber++,
-        moveDirection: moveDir,
-        aimDirection: aimDir,
+        moveAngle,
+        aimAngle,
         fire: input.isFiring()
       })
     }

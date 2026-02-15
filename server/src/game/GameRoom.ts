@@ -1,7 +1,7 @@
 import {
   type GameState, type MapDefinition, type PlayerInput,
   type LeaderboardEntry, type MapId, type Tank,
-  GamePhase, Direction
+  GamePhase
 } from '@tank-br/shared/types.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { getMap, MAP_INFO } from '@tank-br/shared/maps/index.js'
@@ -123,9 +123,11 @@ export class GameRoom {
       if (tank.isBot) continue
       const input = this.playerManager.consumeInput(tank.id)
       if (input) {
-        this.physics.moveTank(tank, input.moveDirection, this.playerManager.getAllTanks())
-        if (input.aimDirection) {
-          tank.direction = input.aimDirection
+        this.physics.moveTank(tank, input.moveAngle, this.playerManager.getAllTanks())
+        tank.turretAngle = input.aimAngle
+        // Fire if player requested
+        if (input.fire) {
+          this.bulletManager.tryFire(tank, this.now)
         }
       }
     }
@@ -140,16 +142,20 @@ export class GameRoom {
       this.zoneManager.getZone(),
       this.now
     )
-    for (const [botId, dir] of botMoves) {
+    for (const [botId, move] of botMoves) {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
-        this.physics.moveTank(bot, dir, allTanks)
+        this.physics.moveTank(bot, move.moveAngle, allTanks)
+        bot.turretAngle = move.aimAngle
       }
     }
 
-    // 2. Auto-fire for all alive tanks
+    // 2. Bot firing (fire when turret is aimed at a target)
     for (const tank of this.playerManager.getAliveTanks()) {
-      this.bulletManager.tryFire(tank, this.now)
+      if (!tank.isBot) continue
+      if (this.shouldBotFire(tank, allTanks)) {
+        this.bulletManager.tryFire(tank, this.now)
+      }
     }
 
     // 3. Update bullets and check hits
@@ -223,26 +229,23 @@ export class GameRoom {
   }
 
   private shouldBotFire(bot: Tank, allTanks: Tank[]): boolean {
-    // Bot fires if an enemy is within 10 cells and aligned with bot's direction
-    const FIRE_RANGE = 10
+    const FIRE_RANGE_SQ = 10 * 10
 
     for (const target of allTanks) {
       if (!target.isAlive || target.id === bot.id) continue
+      if (target.isBot && bot.isBot) continue
 
       const dx = target.position.x - bot.position.x
       const dy = target.position.y - bot.position.y
+      const distSq = dx * dx + dy * dy
 
-      // Check if target is in bot's firing direction
-      if (bot.direction === Direction.Up && dy < 0 && Math.abs(dx) < 1 && Math.abs(dy) <= FIRE_RANGE) {
-        return true
-      }
-      if (bot.direction === Direction.Down && dy > 0 && Math.abs(dx) < 1 && Math.abs(dy) <= FIRE_RANGE) {
-        return true
-      }
-      if (bot.direction === Direction.Left && dx < 0 && Math.abs(dy) < 1 && Math.abs(dx) <= FIRE_RANGE) {
-        return true
-      }
-      if (bot.direction === Direction.Right && dx > 0 && Math.abs(dy) < 1 && Math.abs(dx) <= FIRE_RANGE) {
+      if (distSq > FIRE_RANGE_SQ) continue
+
+      // Check if turret is roughly aimed at target (within ~17 degrees)
+      const angleToTarget = Math.atan2(dx, -dy)
+      let angleDiff = angleToTarget - bot.turretAngle
+      angleDiff = angleDiff - Math.round(angleDiff / (2 * Math.PI)) * 2 * Math.PI
+      if (Math.abs(angleDiff) < 0.3) {
         return true
       }
     }

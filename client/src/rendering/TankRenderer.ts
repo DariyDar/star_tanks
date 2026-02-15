@@ -1,10 +1,12 @@
-import { Direction, type Tank } from '@shared/types.js'
+import type { Tank } from '@shared/types.js'
 import type { Camera } from '../game/Camera.js'
 
-const ROTATION_SPEED = 12 // radians per second
+const HULL_ROTATION_SPEED = 12 // radians per second
+const TURRET_ROTATION_SPEED = 16
 
 export class TankRenderer {
-  private visualAngles = new Map<string, number>()
+  private hullAngles = new Map<string, number>()
+  private turretAngles = new Map<string, number>()
   private lastTime = performance.now()
 
   render(ctx: CanvasRenderingContext2D, tanks: Tank[], camera: Camera, cellPx: number, myId: string): void {
@@ -20,27 +22,17 @@ export class TankRenderer {
       const cx = sx + cellPx / 2
       const cy = sy + cellPx / 2
 
-      // Smooth rotation
-      const targetAngle = directionToAngle(tank.direction)
-      let currentAngle = this.visualAngles.get(tank.id) ?? targetAngle
-
-      // Shortest path rotation
-      let diff = targetAngle - currentAngle
-      while (diff > Math.PI) diff -= Math.PI * 2
-      while (diff < -Math.PI) diff += Math.PI * 2
-
-      if (Math.abs(diff) < 0.01) {
-        currentAngle = targetAngle
-      } else {
-        currentAngle += Math.sign(diff) * Math.min(Math.abs(diff), ROTATION_SPEED * dt)
-      }
-      this.visualAngles.set(tank.id, currentAngle)
-
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(currentAngle)
+      // Smooth hull rotation
+      const hullAngle = this.smoothAngle(this.hullAngles, tank.id, tank.hullAngle, HULL_ROTATION_SPEED, dt)
+      // Smooth turret rotation
+      const turretAngle = this.smoothAngle(this.turretAngles, tank.id, tank.turretAngle, TURRET_ROTATION_SPEED, dt)
 
       const s = cellPx * 0.45
+
+      // 1. Draw hull (treads + body)
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(hullAngle)
 
       // Treads
       ctx.fillStyle = shadeColor(tank.color, -60)
@@ -62,11 +54,18 @@ export class TankRenderer {
         ctx.stroke()
       }
 
-      // Hull
+      // Hull body
       ctx.fillStyle = tank.color
       ctx.fillRect(-s * 0.65, -s * 0.8, s * 1.3, s * 1.6)
 
-      // Turret
+      ctx.restore()
+
+      // 2. Draw turret (separate rotation)
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(turretAngle)
+
+      // Turret dome
       ctx.fillStyle = shadeColor(tank.color, -30)
       ctx.beginPath()
       ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2)
@@ -101,6 +100,23 @@ export class TankRenderer {
     }
   }
 
+  private smoothAngle(angleMap: Map<string, number>, id: string, targetAngle: number, speed: number, dt: number): number {
+    let current = angleMap.get(id) ?? targetAngle
+
+    let diff = targetAngle - current
+    while (diff > Math.PI) diff -= Math.PI * 2
+    while (diff < -Math.PI) diff += Math.PI * 2
+
+    if (Math.abs(diff) < 0.01) {
+      current = targetAngle
+    } else {
+      current += Math.sign(diff) * Math.min(Math.abs(diff), speed * dt)
+    }
+
+    angleMap.set(id, current)
+    return current
+  }
+
   private renderHPBar(
     ctx: CanvasRenderingContext2D, sx: number, sy: number,
     cellPx: number, tank: Tank
@@ -117,15 +133,6 @@ export class TankRenderer {
     const color = ratio > 0.5 ? '#44CC44' : ratio > 0.25 ? '#FFAA00' : '#FF4444'
     ctx.fillStyle = color
     ctx.fillRect(barX, barY, barW * ratio, barH)
-  }
-}
-
-function directionToAngle(dir: Direction): number {
-  switch (dir) {
-    case Direction.Up: return 0
-    case Direction.Right: return Math.PI / 2
-    case Direction.Down: return Math.PI
-    case Direction.Left: return -Math.PI / 2
   }
 }
 

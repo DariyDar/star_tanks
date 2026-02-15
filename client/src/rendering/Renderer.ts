@@ -67,12 +67,18 @@ export class Renderer {
     // Bullets
     this.bulletRenderer.render(ctx, state.bullets, camera, cellPx)
 
-    // Tanks — use predicted position for my tank
+    // Tanks — use predicted position/angles for my tank
     const displayTanks = state.tanks.map(t => {
       if (t.id === playerId) {
         const pos = client.getMyDisplayPosition()
-        const dir = client.getMyDisplayDirection()
-        return pos ? { ...t, position: pos, direction: dir } : t
+        if (pos) {
+          return {
+            ...t,
+            position: pos,
+            hullAngle: client.getMyDisplayHullAngle(),
+            turretAngle: client.getMyDisplayTurretAngle()
+          }
+        }
       }
       return t
     })

@@ -1,16 +1,19 @@
 import {
-  type Bullet, type Tank, Direction, ObstacleType, PowerUpType
+  type Bullet, type Tank, PowerUpType
 } from '@tank-br/shared/types.js'
 import {
-  directionToVec
+  angleToVec
 } from '@tank-br/shared/math.js'
 import {
   SpatialGrid, isBlockingBullet, isDestructible
 } from '@tank-br/shared/collision.js'
 import {
   BULLET_SPEED, BULLET_RANGE, FIRE_COOLDOWN, FIRE_COOLDOWN_RAPID,
-  TICK_MS
+  TICK_MS, TANK_RADIUS
 } from '@tank-br/shared/constants.js'
+
+const BULLET_HIT_RADIUS = TANK_RADIUS + 0.15
+const BULLET_HIT_RADIUS_SQ = BULLET_HIT_RADIUS * BULLET_HIT_RADIUS
 
 export interface BulletHit {
   bullet: Bullet
@@ -40,7 +43,7 @@ export class BulletManager {
 
     tank.lastFireTime = now
 
-    const vec = directionToVec(tank.direction)
+    const vec = angleToVec(tank.turretAngle)
     const bullet: Bullet = {
       id: `b_${bulletIdCounter++}`,
       ownerId: tank.id,
@@ -48,7 +51,7 @@ export class BulletManager {
         x: tank.position.x + vec.x,
         y: tank.position.y + vec.y
       },
-      direction: tank.direction,
+      angle: tank.turretAngle,
       distanceTraveled: 0
     }
 
@@ -62,15 +65,16 @@ export class BulletManager {
     const toRemove = new Set<string>()
 
     for (const bullet of this.bullets) {
-      const vec = directionToVec(bullet.direction)
+      const vec = angleToVec(bullet.angle)
       const steps = Math.ceil(cellsPerTick)
+      const stepSize = cellsPerTick / steps
 
       for (let step = 0; step < steps; step++) {
         bullet.position = {
-          x: bullet.position.x + vec.x,
-          y: bullet.position.y + vec.y
+          x: bullet.position.x + vec.x * stepSize,
+          y: bullet.position.y + vec.y * stepSize
         }
-        bullet.distanceTraveled += 1
+        bullet.distanceTraveled += stepSize
 
         if (
           bullet.position.x < 0 || bullet.position.x >= this.mapWidth ||
@@ -86,8 +90,8 @@ export class BulletManager {
         }
 
         const obs = this.grid.getAt(
-          Math.round(bullet.position.x),
-          Math.round(bullet.position.y)
+          Math.floor(bullet.position.x),
+          Math.floor(bullet.position.y)
         )
         if (obs && isBlockingBullet(obs.type)) {
           toRemove.add(bullet.id)
@@ -100,7 +104,7 @@ export class BulletManager {
           break
         }
 
-        const hitTank = this.findTankAt(bullet, tanks)
+        const hitTank = this.findTankHit(bullet, tanks)
         if (hitTank) {
           hits.push({
             bullet,
@@ -117,14 +121,13 @@ export class BulletManager {
     return hits
   }
 
-  private findTankAt(bullet: Bullet, tanks: Tank[]): Tank | null {
-    const bx = Math.round(bullet.position.x)
-    const by = Math.round(bullet.position.y)
-
+  private findTankHit(bullet: Bullet, tanks: Tank[]): Tank | null {
     for (const tank of tanks) {
       if (!tank.isAlive) continue
       if (tank.id === bullet.ownerId) continue
-      if (Math.round(tank.position.x) === bx && Math.round(tank.position.y) === by) {
+      const dx = bullet.position.x - tank.position.x
+      const dy = bullet.position.y - tank.position.y
+      if (dx * dx + dy * dy < BULLET_HIT_RADIUS_SQ) {
         return tank
       }
     }

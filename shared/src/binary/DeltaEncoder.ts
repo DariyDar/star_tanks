@@ -3,7 +3,6 @@ import { IndexMap } from './IndexMap.js'
 import {
   MSG_DELTA_STATE,
   TANK_DATA_SIZE,
-  directionToNumber,
   powerUpToNumber
 } from './BinaryProtocol.js'
 
@@ -40,7 +39,7 @@ export function encodeDeltaState(
   // Build delta packet
   // Header: type(1) + tick(4) + tankCount(1)
   const headerSize = 6
-  const dataSize = changedTanks.length * (1 + 20)  // tankIndex + partial tank data
+  const dataSize = changedTanks.length * (1 + 27)  // tankIndex + partial tank data (pos+angles+hp+stars+flags+alive)
 
   const buffer = new ArrayBuffer(headerSize + dataSize)
   const view = new DataView(buffer)
@@ -51,7 +50,7 @@ export function encodeDeltaState(
   view.setUint32(offset, currentState.tick, true); offset += 4
   view.setUint8(offset, changedTanks.length); offset += 1
 
-  // Changed tanks (only position, hp, direction, stars)
+  // Changed tanks (position, angles, hp, stars)
   for (const tank of changedTanks) {
     const index = indexMap.getIndex(tank.id)
     if (index === undefined) continue
@@ -59,11 +58,11 @@ export function encodeDeltaState(
     view.setUint8(offset, index); offset += 1
     view.setUint16(offset, Math.round(tank.position.x * 10), true); offset += 2
     view.setUint16(offset, Math.round(tank.position.y * 10), true); offset += 2
-    view.setUint8(offset, directionToNumber(tank.direction)); offset += 1
+    view.setFloat32(offset, tank.hullAngle, true); offset += 4
+    view.setFloat32(offset, tank.turretAngle, true); offset += 4
     view.setUint8(offset, tank.hp); offset += 1
     view.setUint16(offset, tank.stars, true); offset += 2
 
-    // Flags for powerup
     let flags = 0
     if (tank.activePowerUp) {
       flags |= (1 << 0)
@@ -87,8 +86,9 @@ function hasTankChanged(current: Tank, previous: Tank): boolean {
     return true
   }
 
-  // Direction changed
-  if (current.direction !== previous.direction) {
+  // Angles changed
+  if (Math.abs(current.hullAngle - previous.hullAngle) > 0.01 ||
+      Math.abs(current.turretAngle - previous.turretAngle) > 0.01) {
     return true
   }
 

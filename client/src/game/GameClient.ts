@@ -1,7 +1,7 @@
 import type { GameState, Tank, CompressedMapData, Obstacle, Vec2 } from '@shared/types.js'
-import { ObstacleType, Direction } from '@shared/types.js'
-import { BRICK_HP, TANK_SPEED, CELL_SIZE } from '@shared/constants.js'
-import { directionToVec, clamp } from '@shared/math.js'
+import { ObstacleType } from '@shared/types.js'
+import { BRICK_HP, TANK_SPEED, TANK_RADIUS } from '@shared/constants.js'
+import { angleToVec, clamp } from '@shared/math.js'
 import { Camera } from './Camera.js'
 
 export class GameClient {
@@ -16,8 +16,8 @@ export class GameClient {
 
   // Client-side prediction
   private predictedPos: Vec2 | null = null
-  private predictedDir: Direction = Direction.Up
-  private lastPredictTime = 0
+  private predictedHullAngle = 0
+  private predictedTurretAngle = 0
 
   constructor() {
     this.camera = new Camera(1, 1)
@@ -46,8 +46,8 @@ export class GameClient {
     }
   }
 
-  applyLocalInput(moveDir: Direction | null, dt: number): void {
-    if (!moveDir || !this.state) return
+  applyLocalInput(moveAngle: number | null, aimAngle: number, dt: number): void {
+    if (!this.state) return
     const myTank = this.getMyTank()
     if (!myTank || !myTank.isAlive) return
 
@@ -55,33 +55,75 @@ export class GameClient {
       this.predictedPos = { ...myTank.position }
     }
 
-    this.predictedDir = moveDir
+    this.predictedTurretAngle = aimAngle
 
-    const vec = directionToVec(moveDir)
+    if (moveAngle === null) {
+      this.camera.follow(this.predictedPos)
+      return
+    }
+
+    this.predictedHullAngle = moveAngle
+
+    const vec = angleToVec(moveAngle)
     const speed = TANK_SPEED
-    const newX = this.predictedPos.x + vec.x * speed * dt
-    const newY = this.predictedPos.y + vec.y * speed * dt
+    const dx = vec.x * speed * dt
+    const dy = vec.y * speed * dt
 
-    // Check target cell for collision
-    const targetCellX = vec.x > 0 ? Math.ceil(newX) : vec.x < 0 ? Math.floor(newX) : Math.round(newX)
-    const targetCellY = vec.y > 0 ? Math.ceil(newY) : vec.y < 0 ? Math.floor(newY) : Math.round(newY)
+    let newX = this.predictedPos.x + dx
+    let newY = this.predictedPos.y + dy
 
-    const cx = clamp(targetCellX, 0, this.mapWidth - 1)
-    const cy = clamp(targetCellY, 0, this.mapHeight - 1)
+    newX = clamp(newX, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
+    newY = clamp(newY, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
 
-    if (!this.obstacleSet.has(`${cx},${cy}`)) {
-      this.predictedPos = {
-        x: clamp(newX, 0, this.mapWidth - 1),
-        y: clamp(newY, 0, this.mapHeight - 1)
-      }
-    } else {
-      this.predictedPos = {
-        x: Math.round(this.predictedPos.x),
-        y: Math.round(this.predictedPos.y)
+    // Try full movement
+    if (!this.collidesWithObstacle(newX, newY)) {
+      this.predictedPos = { x: newX, y: newY }
+      this.camera.follow(this.predictedPos)
+      return
+    }
+
+    // Wall sliding: try X-only
+    const slideX = clamp(this.predictedPos.x + dx, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
+    if (!this.collidesWithObstacle(slideX, this.predictedPos.y)) {
+      this.predictedPos = { x: slideX, y: this.predictedPos.y }
+      this.camera.follow(this.predictedPos)
+      return
+    }
+
+    // Wall sliding: try Y-only
+    const slideY = clamp(this.predictedPos.y + dy, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
+    if (!this.collidesWithObstacle(this.predictedPos.x, slideY)) {
+      this.predictedPos = { x: this.predictedPos.x, y: slideY }
+      this.camera.follow(this.predictedPos)
+      return
+    }
+
+    // Fully blocked
+    this.camera.follow(this.predictedPos)
+  }
+
+  private collidesWithObstacle(cx: number, cy: number): boolean {
+    const minX = Math.floor(cx - TANK_RADIUS)
+    const maxX = Math.floor(cx + TANK_RADIUS)
+    const minY = Math.floor(cy - TANK_RADIUS)
+    const maxY = Math.floor(cy + TANK_RADIUS)
+
+    for (let gy = minY; gy <= maxY; gy++) {
+      for (let gx = minX; gx <= maxX; gx++) {
+        if (!this.obstacleSet.has(`${gx},${gy}`)) continue
+
+        const closestX = clamp(cx, gx, gx + 1)
+        const closestY = clamp(cy, gy, gy + 1)
+        const distX = cx - closestX
+        const distY = cy - closestY
+
+        if (distX * distX + distY * distY < TANK_RADIUS * TANK_RADIUS) {
+          return true
+        }
       }
     }
 
-    this.camera.follow(this.predictedPos)
+    return false
   }
 
   updateState(state: GameState): void {
@@ -89,19 +131,15 @@ export class GameClient {
 
     const myTank = this.getMyTank()
     if (myTank) {
-      // Reconcile: blend predicted position toward server position
       if (this.predictedPos) {
         const dx = myTank.position.x - this.predictedPos.x
         const dy = myTank.position.y - this.predictedPos.y
         const dist = Math.sqrt(dx * dx + dy * dy)
 
-        // If too far off, snap immediately to server position
         if (dist > 1) {
           this.predictedPos = { ...myTank.position }
-        }
-        // If small difference, smoothly blend towards server position
-        else if (dist > 0.05) {
-          const blendFactor = 0.7  // Faster correction to prevent sliding
+        } else if (dist > 0.05) {
+          const blendFactor = 0.7
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor
         }
@@ -121,7 +159,11 @@ export class GameClient {
     return this.getMyTank()?.position
   }
 
-  getMyDisplayDirection(): Direction {
-    return this.predictedDir
+  getMyDisplayHullAngle(): number {
+    return this.predictedHullAngle
+  }
+
+  getMyDisplayTurretAngle(): number {
+    return this.predictedTurretAngle
   }
 }

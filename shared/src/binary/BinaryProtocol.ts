@@ -8,8 +8,8 @@ export const MSG_KILL = 0x04
 export const MSG_PORTAL_EXIT = 0x05
 
 // Size constants
-export const TANK_DATA_SIZE = 24
-export const BULLET_DATA_SIZE = 11
+export const TANK_DATA_SIZE = 30   // was 24: removed 1B direction, added 4B hullAngle + 4B turretAngle
+export const BULLET_DATA_SIZE = 14  // was 11: removed 1B direction, added 4B angle
 export const POWERUP_DATA_SIZE = 10
 export const PORTAL_DATA_SIZE = 9
 export const LEADERBOARD_ENTRY_SIZE = 6

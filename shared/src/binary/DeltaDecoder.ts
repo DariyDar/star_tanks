@@ -2,7 +2,6 @@ import { GameState, Tank } from '../types.js'
 import type { TankMeta } from './BinaryDecoder.js'
 import {
   MSG_DELTA_STATE,
-  numberToDirection,
   numberToPowerUp
 } from './BinaryProtocol.js'
 
@@ -43,7 +42,8 @@ export function applyDeltaState(
     // Update tank with delta data
     tank.position.x = view.getUint16(offset, true) / 10; offset += 2
     tank.position.y = view.getUint16(offset, true) / 10; offset += 2
-    tank.direction = numberToDirection(view.getUint8(offset)); offset += 1
+    tank.hullAngle = view.getFloat32(offset, true); offset += 4
+    tank.turretAngle = view.getFloat32(offset, true); offset += 4
     tank.hp = view.getUint8(offset); offset += 1
     tank.stars = view.getUint16(offset, true); offset += 2
 

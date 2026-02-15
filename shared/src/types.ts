@@ -37,7 +37,8 @@ export interface Tank {
   id: string
   name: string
   position: Vec2
-  direction: Direction
+  hullAngle: number      // radians, hull direction (0 = up)
+  turretAngle: number    // radians, turret direction (0 = up)
   hp: number
   maxHp: number
   stars: number
@@ -57,7 +58,7 @@ export interface Bullet {
   id: string
   ownerId: string
   position: Vec2
-  direction: Direction
+  angle: number          // radians, bullet travel direction
   distanceTraveled: number
 }
 
@@ -139,9 +140,9 @@ export interface LeaderboardEntry {
 export interface PlayerInput {
   tick: number
   sequenceNumber: number
-  moveDirection: Direction | null
-  aimDirection: Direction
-  fire: boolean  // Whether player wants to fire this tick
+  moveAngle: number | null   // null = standing still
+  aimAngle: number            // turret direction in radians
+  fire: boolean               // Whether player wants to fire this tick
 }
 
 export interface RoomInfo {

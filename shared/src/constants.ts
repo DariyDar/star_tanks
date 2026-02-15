@@ -15,6 +15,9 @@ export const BOT_SPEED = 3  // Bots move slower than players
 export const FIRE_COOLDOWN = 1000
 export const FIRE_COOLDOWN_RAPID = 500
 
+// Collision
+export const TANK_RADIUS = 0.45
+
 // Bullet
 export const BULLET_SPEED = 10
 export const BULLET_RANGE = 15
