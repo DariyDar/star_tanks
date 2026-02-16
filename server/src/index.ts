@@ -4,12 +4,17 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import { config } from './config.js'
 import { SocketHandler } from './network/SocketHandler.js'
+import { serverStats } from './stats/ServerStats.js'
 
 const app = express()
 app.use(cors({ origin: config.corsOrigin }))
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() })
+})
+
+app.get('/stats', (_req, res) => {
+  res.json(serverStats.getReport())
 })
 
 const httpServer = createServer(app)

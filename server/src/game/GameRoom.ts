@@ -20,6 +20,7 @@ import { BotController } from '../ai/BotController.js'
 import { CTFManager } from './CTFManager.js'
 import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
 import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
+import { serverStats } from '../stats/ServerStats.js'
 
 export interface GameRoomEvents {
   onStateUpdate: (state: GameState, room: GameRoom) => void
@@ -296,6 +297,7 @@ export class GameRoom {
   }
 
   private tick(tickNum: number, _deltaMs: number): void {
+    const tickStart = performance.now()
     this.now = Date.now()
     const elapsed = this.now - this.startTime
 
@@ -553,7 +555,17 @@ export class GameRoom {
     if (tickNum % 2 === 0) {
       const state = this.buildGameState(tickNum, elapsed)
       this.events.onStateUpdate(state, this)
+
+      // Update stats
+      serverStats.updateEntities(
+        state.tanks.length,
+        state.bullets.length,
+        state.stars.length,
+        1
+      )
     }
+
+    serverStats.recordTick(performance.now() - tickStart)
   }
 
   private shouldBotFire(bot: Tank, allTanks: Tank[]): boolean {
@@ -634,9 +646,12 @@ export class GameRoom {
 
   /** Encode a per-player culled binary state (filters bullets by proximity) */
   encodeCulledState(state: GameState, playerId: string): ArrayBuffer {
+    const encStart = performance.now()
     const tank = this.playerManager.getTank(playerId)
     if (!tank) {
-      return encodeFullState(state, this.indexMap as any)
+      const buf = encodeFullState(state, this.indexMap as any)
+      serverStats.recordEncode(performance.now() - encStart)
+      return buf
     }
 
     const px = tank.position.x
@@ -653,7 +668,9 @@ export class GameRoom {
       bullets: culledBullets
     }
 
-    return encodeFullState(culledState, this.indexMap as any)
+    const buf = encodeFullState(culledState, this.indexMap as any)
+    serverStats.recordEncode(performance.now() - encStart)
+    return buf
   }
 
   /** Get socket IDs of all human (non-bot) players */

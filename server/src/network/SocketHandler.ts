@@ -6,9 +6,11 @@ import { CLIENT_EVENTS, SERVER_EVENTS } from '@tank-br/shared/protocol.js'
 import type { CompressedMapData } from '@tank-br/shared/types.js'
 import { ObstacleType } from '@tank-br/shared/types.js'
 import { RoomManager } from './RoomManager.js'
+import { serverStats } from '../stats/ServerStats.js'
 
 export class SocketHandler {
   private roomManager: RoomManager
+  private playerNames = new Map<string, string>()
 
   constructor(private readonly io: Server) {
     this.roomManager = new RoomManager(io)
@@ -25,6 +27,11 @@ export class SocketHandler {
     })
 
     socket.on(CLIENT_EVENTS.PING, (payload: ClientPingPayload) => {
+      // Track ping RTT (client sends its timestamp, we measure round-trip)
+      const pingMs = Date.now() - payload.timestamp
+      const name = this.playerNames.get(socket.id) ?? '?'
+      serverStats.recordPing(socket.id, name, pingMs)
+
       socket.emit(SERVER_EVENTS.PONG, {
         timestamp: payload.timestamp,
         serverTime: Date.now()
@@ -48,6 +55,7 @@ export class SocketHandler {
       return
     }
 
+    this.playerNames.set(socket.id, playerName)
     const result = this.roomManager.joinRoom(socket.id, playerName, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
     if (!result) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 2 stars)' })
@@ -97,6 +105,8 @@ export class SocketHandler {
 
     socket.leave(room.roomId)
     this.roomManager.leaveRoom(socket.id)
+    this.playerNames.delete(socket.id)
+    serverStats.removePlayer(socket.id)
   }
 }
 
