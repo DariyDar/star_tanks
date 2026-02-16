@@ -5,7 +5,8 @@ import {
 } from '@tank-br/shared/types.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
 import { getMap, MAP_INFO } from '@tank-br/shared/maps/index.js'
-import { MAX_PLAYERS } from '@tank-br/shared/constants.js'
+import { MAX_PLAYERS, TANK_SPEED } from '@tank-br/shared/constants.js'
+import { PowerUpType } from '@tank-br/shared/types.js'
 import { GameLoop } from './GameLoop.js'
 import { PhysicsEngine } from './PhysicsEngine.js'
 import { BulletManager } from './BulletManager.js'
@@ -24,7 +25,7 @@ export interface GameRoomEvents {
   onStateUpdate: (state: GameState, room: GameRoom) => void
   onKill: (deadId: string, deadName: string, killerId: string, killerName: string) => void
   onPortalExit: (playerId: string, playerName: string, stars: number) => void
-  onGameOver: (leaderboard: LeaderboardEntry[]) => void
+  onGameOver: (leaderboard: LeaderboardEntry[], alivePlayers: Array<{ id: string; stars: number }>) => void
 }
 
 export class GameRoom {
@@ -50,6 +51,7 @@ export class GameRoom {
   private now = 0
   private unstickCooldowns = new Map<string, number>()
   private botPositions = new Map<string, { x: number; y: number; since: number }>()
+  private ctfBossSpawned = false
 
   constructor(roomId: string, mapId: MapId, events: GameRoomEvents) {
     this.roomId = roomId
@@ -451,8 +453,8 @@ export class GameRoom {
 
           if (dead && this.phase !== GamePhase.GameOver) {
             const targetId = hit.targetId
-            // Boss does not respawn
-            if (targetId !== 'boss_1') {
+            // Bosses do not respawn
+            if (targetId !== 'boss_1' && targetId !== 'ctf_boss') {
               setTimeout(() => {
                 this.respawnWithTeam(targetId)
               }, 3000)
@@ -514,6 +516,27 @@ export class GameRoom {
       return
     }
 
+    // 8c. CTF boss: spawn GUARDIAN in last 30 seconds
+    if (this.mapId === 'ctf' && !this.ctfBossSpawned && elapsed >= 210000) {
+      this.ctfBossSpawned = true
+      const bossId = 'ctf_boss'
+      this.playerManager.addPlayer(bossId, 'GUARDIAN', true)
+      const boss = this.playerManager.getTank(bossId)
+      if (boss) {
+        boss.tankRadius = 1.35    // 3x normal
+        boss.hp = 30
+        boss.maxHp = 30
+        boss.speed = TANK_SPEED * 0.8
+        boss.color = '#8B0000'    // Dark red
+        boss.stars = 20           // Drops these on death
+        boss.activePowerUp = PowerUpType.RapidFire
+        boss.powerUpEndTime = Number.MAX_SAFE_INTEGER
+        // Spawn in map center
+        boss.position = { x: this.map.width / 2, y: this.map.height / 2 }
+      }
+      try { this.indexMap.assign(bossId) } catch (e) {}
+    }
+
     // 9. Update phase
     if (elapsed >= 180000 && this.phase === GamePhase.Playing) {
       this.phase = GamePhase.Shrinking
@@ -529,10 +552,12 @@ export class GameRoom {
 
     for (const target of allTanks) {
       if (!target.isAlive || target.id === bot.id) continue
-      // In CTF: bots fight enemy team (bots AND players)
-      if (bot.team && target.team) {
+      // CTF boss (GUARDIAN) shoots everyone
+      if (bot.id === 'ctf_boss') {
+        // Boss attacks everyone, no restrictions
+      } else if (bot.team && target.team) {
+        // In CTF: bots fight enemy team (bots AND players)
         if (target.team === bot.team) continue // don't shoot teammates
-        // Allow shooting enemy team bots
       } else {
         // Non-CTF: bots don't shoot each other
         if (target.isBot && bot.isBot) continue
@@ -613,7 +638,13 @@ export class GameRoom {
     this.phase = GamePhase.GameOver
 
     const state = this.buildGameState(this.gameLoop.currentTick, this.now - this.startTime)
-    this.events.onGameOver(state.leaderboard)
+
+    // Collect alive human players and their stars for account saving
+    const alivePlayers = this.playerManager.getAllTanks()
+      .filter(t => !t.isBot && t.isAlive && t.stars > 0)
+      .map(t => ({ id: t.id, stars: t.stars }))
+
+    this.events.onGameOver(state.leaderboard, alivePlayers)
   }
 
   get playerCount(): number {

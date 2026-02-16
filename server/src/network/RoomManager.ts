@@ -48,7 +48,11 @@ export class RoomManager {
           newAccountBalance: newBalance
         })
       },
-      onGameOver: (leaderboard) => {
+      onGameOver: (leaderboard, alivePlayers) => {
+        // Save stars for all alive human players
+        for (const player of alivePlayers) {
+          this.accountManager.addStarsFromPortal(player.id, player.stars)
+        }
         this.io.to(roomId).emit('server:game_over', { leaderboard })
       }
     }
