@@ -50,6 +50,16 @@ export function generateCTFMap(): MapDefinition {
   buildBase(baseA.x, baseA.y, BASE_W, BASE_H, true)
   buildBase(baseB.x, baseB.y, BASE_W, BASE_H, false)
 
+  // Border walls — enclose the map so players can't escape
+  for (let x = 0; x < MAP_WIDTH; x++) {
+    addObstacle(x, 0, ObstacleType.Steel)
+    addObstacle(x, MAP_HEIGHT - 1, ObstacleType.Steel)
+  }
+  for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+    addObstacle(0, y, ObstacleType.Steel)
+    addObstacle(MAP_WIDTH - 1, y, ObstacleType.Steel)
+  }
+
   // Symmetrical obstacles in the middle zone
   const midX = MAP_WIDTH / 2
 

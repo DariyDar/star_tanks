@@ -40,8 +40,8 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   // CTF encoding size: hasCTF(1) + flagAx(4) + flagAy(4) + flagBx(4) + flagBy(4) + scoreA(1) + scoreB(1) + baseAx(2) + baseAy(2) + baseAw(2) + baseAh(2) + baseBx(2) + baseBy(2) + baseBw(2) + baseBh(2) + flags(1) = 36
   const ctfSize = state.ctf ? 36 : 1
 
-  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*35) + Leaderboard(1+n*6) + Boss(1 or 25) + CTF(1 or 36)
-  const size = 15 + 18 +
+  // Header(17) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*35) + Leaderboard(1+n*6) + Boss(1 or 25) + CTF(1 or 36)
+  const size = 17 + 18 +
     1 + starCount * STAR_ITEM_SIZE +
     1 + bulletCount * BULLET_ENCODE_SIZE +
     1 + powerUpCount * POWERUP_ENCODE_SIZE +
@@ -62,6 +62,7 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   view.setUint8(offset, phaseToNumber(state.phase)); offset += 1
   view.setUint8(offset, state.playersAlive); offset += 1
   view.setFloat32(offset, state.timeElapsed, true); offset += 4
+  view.setUint16(offset, state.ctfTimeRemaining ?? 0, true); offset += 2
 
   // Zone (18 bytes) — decoder reads as float32 for centerX/Y
   view.setFloat32(offset, state.zone.centerX, true); offset += 4

@@ -183,6 +183,7 @@ export interface GameState {
   zone: Zone
   boss: Boss | null
   ctf: CTFState | null
+  ctfTimeRemaining: number  // Seconds remaining in CTF round (0 = not CTF)
   leaderboard: LeaderboardEntry[]
   playersAlive: number
   timeElapsed: number

@@ -27,13 +27,18 @@ export class HudRenderer {
     // Leaderboard
     this.renderLeaderboard(ctx, state, myTank?.id)
 
-    // CTF scores
+    // CTF scores + timer
     if (state.ctf) {
-      this.renderCTFScores(ctx, w, state.ctf)
+      this.renderCTFScores(ctx, w, state.ctf, state.ctfTimeRemaining ?? 0)
 
       // Flag carrier indicator
       if (myTank?.hasFlag) {
         this.renderFlagCarrierWarning(ctx, w, h)
+      }
+
+      // Dramatic countdown (last 7 seconds)
+      if (state.ctfTimeRemaining !== undefined && state.ctfTimeRemaining <= 7 && state.ctfTimeRemaining > 0) {
+        this.renderCountdown(ctx, w, h, state.ctfTimeRemaining)
       }
     }
 
@@ -271,9 +276,9 @@ export class HudRenderer {
     }
   }
 
-  private renderCTFScores(ctx: CanvasRenderingContext2D, w: number, ctf: import('@shared/types.js').CTFState): void {
-    const panelW = 120
-    const panelH = 36
+  private renderCTFScores(ctx: CanvasRenderingContext2D, w: number, ctf: import('@shared/types.js').CTFState, timeRemaining: number): void {
+    const panelW = 160
+    const panelH = 52
     const x = (w - panelW) / 2
     const y = 10
 
@@ -281,24 +286,42 @@ export class HudRenderer {
     this.roundRect(ctx, x, y, panelW, panelH, 8)
     ctx.fill()
 
-    ctx.font = 'bold 16px Arial'
+    // Scores row
+    ctx.font = 'bold 18px Arial'
     ctx.textBaseline = 'middle'
-    const centerY = y + panelH / 2
+    const scoreY = y + 18
 
     // Team A score (blue)
     ctx.fillStyle = '#4488FF'
     ctx.textAlign = 'right'
-    ctx.fillText(`${ctf.scoreA}`, x + panelW / 2 - 10, centerY)
+    ctx.fillText(`${ctf.scoreA}`, x + panelW / 2 - 12, scoreY)
 
     // Separator
     ctx.fillStyle = '#AAA'
     ctx.textAlign = 'center'
-    ctx.fillText(':', x + panelW / 2, centerY)
+    ctx.fillText(':', x + panelW / 2, scoreY)
 
     // Team B score (red)
     ctx.fillStyle = '#FF4444'
     ctx.textAlign = 'left'
-    ctx.fillText(`${ctf.scoreB}`, x + panelW / 2 + 10, centerY)
+    ctx.fillText(`${ctf.scoreB}`, x + panelW / 2 + 12, scoreY)
+
+    // Timer row
+    const mins = Math.floor(timeRemaining / 60)
+    const secs = timeRemaining % 60
+    const timerStr = `${mins}:${secs.toString().padStart(2, '0')}`
+    const isUrgent = timeRemaining <= 10
+
+    if (isUrgent) {
+      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 150)
+      ctx.fillStyle = `rgba(255, 50, 50, ${pulse})`
+      ctx.font = 'bold 14px Arial'
+    } else {
+      ctx.fillStyle = '#CCC'
+      ctx.font = '13px Arial'
+    }
+    ctx.textAlign = 'center'
+    ctx.fillText(timerStr, x + panelW / 2, y + 40)
   }
 
   private renderFlagCarrierWarning(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -308,6 +331,55 @@ export class HudRenderer {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     ctx.fillText('YOU HAVE THE FLAG!', w / 2, 52)
+  }
+
+  private renderCountdown(ctx: CanvasRenderingContext2D, w: number, h: number, timeRemaining: number): void {
+    // Big number countdown like in competitive games
+    // Number appears and scales up while fading out — "rushing toward viewer"
+    const num = Math.ceil(timeRemaining)
+    if (num <= 0 || num > 7) return
+
+    // Animation progress within this second (0 = just appeared, 1 = about to disappear)
+    const frac = 1 - (timeRemaining - Math.floor(timeRemaining))
+    // Adjust for ceil: we want the animation to play for each integer second
+    const t = (num === timeRemaining) ? 0 : frac
+
+    // Scale: starts at 1x, grows to ~3x
+    const scale = 1 + t * 2.5
+    // Opacity: starts fully visible, fades to 0
+    const alpha = Math.max(0, 1 - t * 1.1)
+
+    if (alpha <= 0) return
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+
+    // Glow effect
+    ctx.shadowColor = '#FF3333'
+    ctx.shadowBlur = 30 * scale
+
+    // Text
+    const fontSize = Math.min(w, h) * 0.35 * scale
+    ctx.font = `bold ${fontSize}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Dark outline for readability
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
+    ctx.lineWidth = fontSize * 0.06
+    ctx.strokeText(`${num}`, w / 2, h / 2)
+
+    // Number with gradient red-to-orange
+    const grad = ctx.createLinearGradient(w / 2, h / 2 - fontSize / 2, w / 2, h / 2 + fontSize / 2)
+    grad.addColorStop(0, '#FF4444')
+    grad.addColorStop(0.5, '#FF6622')
+    grad.addColorStop(1, '#FF4444')
+    ctx.fillStyle = grad
+    ctx.fillText(`${num}`, w / 2, h / 2)
+
+    ctx.shadowBlur = 0
+    ctx.globalAlpha = 1
+    ctx.restore()
   }
 
   private renderStuckHint(ctx: CanvasRenderingContext2D, w: number, h: number): void {

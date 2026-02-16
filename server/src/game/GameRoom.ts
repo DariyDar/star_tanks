@@ -195,6 +195,21 @@ export class GameRoom {
     this.teleportNearby(tank)
   }
 
+  private respawnWithTeam(tankId: string): void {
+    this.playerManager.respawnTank(tankId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+    // Override spawn position for CTF team members
+    if (this.mapId === 'ctf') {
+      const tank = this.playerManager.getTank(tankId)
+      if (tank && tank.team) {
+        const teamSpawns = tank.team === 'a' ? this.map.spawnPointsA : this.map.spawnPointsB
+        if (teamSpawns && teamSpawns.length > 0) {
+          const sp = teamSpawns[Math.floor(Math.random() * teamSpawns.length)]
+          tank.position = { x: sp.x, y: sp.y }
+        }
+      }
+    }
+  }
+
   private teleportNearby(tank: import('@tank-br/shared/types.js').Tank): void {
     for (let attempt = 0; attempt < 50; attempt++) {
       const angle = Math.random() * Math.PI * 2
@@ -396,7 +411,7 @@ export class GameRoom {
             if (dead && this.phase !== GamePhase.GameOver) {
               const targetId = damageEvent.tankId
               setTimeout(() => {
-                this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+                this.respawnWithTeam(targetId)
               }, 3000)
             }
           }
@@ -439,7 +454,7 @@ export class GameRoom {
             // Boss does not respawn
             if (targetId !== 'boss_1') {
               setTimeout(() => {
-                this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+                this.respawnWithTeam(targetId)
               }, 3000)
             }
           }
@@ -489,6 +504,12 @@ export class GameRoom {
 
     // 8. Check game over
     if (this.zoneManager.isFullyShrunk() || this.playerManager.aliveCount === 0) {
+      this.stop()
+      return
+    }
+
+    // 8b. CTF time limit: 4 minutes
+    if (this.mapId === 'ctf' && elapsed >= 240000) {
       this.stop()
       return
     }
@@ -559,6 +580,7 @@ export class GameRoom {
       zone: this.zoneManager.getZone(),
       boss: null,  // Boss is now a regular tank, not a separate entity
       ctf: this.ctfManager ? this.ctfManager.getState() : null,
+      ctfTimeRemaining: this.mapId === 'ctf' ? Math.max(0, Math.ceil((240000 - timeElapsed) / 1000)) : 0,
       leaderboard,
       playersAlive: this.playerManager.aliveCount,
       timeElapsed

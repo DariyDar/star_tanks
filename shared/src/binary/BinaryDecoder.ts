@@ -150,6 +150,7 @@ export class BinaryDecoder {
     const phaseNum = this.readUint8()
     const playersAlive = this.readUint8()
     const timeElapsed = this.readFloat32()
+    const ctfTimeRemaining = this.readUint16()
 
     const phase = numberToPhase(phaseNum)
 
@@ -280,6 +281,7 @@ export class BinaryDecoder {
       zone,
       boss,
       ctf,
+      ctfTimeRemaining,
       leaderboard,
       playersAlive,
       timeElapsed

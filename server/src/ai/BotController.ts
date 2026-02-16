@@ -118,24 +118,6 @@ export class BotController {
     now: number,
     ctf: CTFInfo
   ): number | null {
-    // Bot repulsion (same as normal mode)
-    const bots = tanks.filter(t => t.isBot && t.isAlive && t.id !== tank.id)
-    let repulsionX = 0, repulsionY = 0, repulsionCount = 0
-    for (const other of bots) {
-      const dx = tank.position.x - other.position.x
-      const dy = tank.position.y - other.position.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < BOT_REPULSION_RANGE && dist > 0.1) {
-        const strength = (BOT_REPULSION_RANGE - dist) / BOT_REPULSION_RANGE * BOT_REPULSION_STRENGTH
-        repulsionX += (dx / dist) * strength
-        repulsionY += (dy / dist) * strength
-        repulsionCount++
-      }
-    }
-    if (repulsionCount > 0 && Math.sqrt(repulsionX * repulsionX + repulsionY * repulsionY) > 0.5) {
-      return vecToAngle(repulsionX, repulsionY)
-    }
-
     const myTeam = tank.team!
     const enemyTeam = myTeam === 'a' ? 'b' : 'a'
 
@@ -163,6 +145,26 @@ export class BotController {
 
       // Navigate to door entry point first
       return vecToAngle(doorX - tank.position.x, doorY - tank.position.y)
+    }
+
+    // Bot repulsion (skip for flag carriers — they need to push through)
+    if (!tank.hasFlag) {
+      const bots = tanks.filter(t => t.isBot && t.isAlive && t.id !== tank.id)
+      let repulsionX = 0, repulsionY = 0, repulsionCount = 0
+      for (const other of bots) {
+        const dx = tank.position.x - other.position.x
+        const dy = tank.position.y - other.position.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < BOT_REPULSION_RANGE && dist > 0.1) {
+          const strength = (BOT_REPULSION_RANGE - dist) / BOT_REPULSION_RANGE * BOT_REPULSION_STRENGTH
+          repulsionX += (dx / dist) * strength
+          repulsionY += (dy / dist) * strength
+          repulsionCount++
+        }
+      }
+      if (repulsionCount > 0 && Math.sqrt(repulsionX * repulsionX + repulsionY * repulsionY) > 0.5) {
+        return vecToAngle(repulsionX, repulsionY)
+      }
     }
 
     // If enemy flag has no carrier: go grab it
