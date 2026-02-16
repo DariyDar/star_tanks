@@ -108,6 +108,13 @@ export class GameRoom {
           tank.team = teamACnt <= teamBCnt ? 'a' : 'b'
         }
         tank.color = tank.team === 'a' ? '#4488FF' : '#FF4444'
+
+        // Spawn player on their team's side
+        const teamSpawns = tank.team === 'a' ? this.map.spawnPointsA : this.map.spawnPointsB
+        if (teamSpawns && teamSpawns.length > 0) {
+          const sp = teamSpawns[Math.floor(Math.random() * teamSpawns.length)]
+          tank.position = { x: sp.x, y: sp.y }
+        }
       }
 
       // Store CTF bot settings from first player
@@ -223,7 +230,7 @@ export class GameRoom {
       const botsA = this.ctfSettings?.botsA ?? 3
       const botsB = this.ctfSettings?.botsB ?? 3
 
-      // Spawn Team A bots
+      // Spawn Team A bots (on Team A territory)
       for (let i = 0; i < botsA; i++) {
         const botId = `bot_a_${i}`
         this.playerManager.addPlayer(botId, `Bot A${i + 1}`, true)
@@ -231,11 +238,16 @@ export class GameRoom {
         if (bot) {
           bot.team = 'a'
           bot.color = '#4488FF'
+          // Override spawn position to Team A territory
+          if (this.map.spawnPointsA && this.map.spawnPointsA.length > 0) {
+            const sp = this.map.spawnPointsA[i % this.map.spawnPointsA.length]
+            bot.position = { x: sp.x, y: sp.y }
+          }
         }
         try { this.indexMap.assign(botId) } catch (e) {}
       }
 
-      // Spawn Team B bots
+      // Spawn Team B bots (on Team B territory)
       for (let i = 0; i < botsB; i++) {
         const botId = `bot_b_${i}`
         this.playerManager.addPlayer(botId, `Bot B${i + 1}`, true)
@@ -243,6 +255,11 @@ export class GameRoom {
         if (bot) {
           bot.team = 'b'
           bot.color = '#FF4444'
+          // Override spawn position to Team B territory
+          if (this.map.spawnPointsB && this.map.spawnPointsB.length > 0) {
+            const sp = this.map.spawnPointsB[i % this.map.spawnPointsB.length]
+            bot.position = { x: sp.x, y: sp.y }
+          }
         }
         try { this.indexMap.assign(botId) } catch (e) {}
       }

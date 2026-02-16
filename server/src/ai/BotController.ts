@@ -139,13 +139,30 @@ export class BotController {
     const myTeam = tank.team!
     const enemyTeam = myTeam === 'a' ? 'b' : 'a'
 
-    // If carrying flag: go to own base to capture
+    // If carrying flag: navigate to base door first, then inside
     if (tank.hasFlag) {
       const myBase = myTeam === 'a' ? ctf.baseA : ctf.baseB
-      const baseCenter = { x: myBase.x + myBase.w / 2, y: myBase.y + myBase.h / 2 }
-      const dx = baseCenter.x - tank.position.x
-      const dy = baseCenter.y - tank.position.y
-      return vecToAngle(dx, dy)
+      const doorY = myBase.y + myBase.h / 2
+
+      // Door entry point: just outside the door opening
+      // Base A opens right (door on right wall), Base B opens left (door on left wall)
+      const doorX = myTeam === 'a'
+        ? myBase.x + myBase.w + 1  // just outside right wall
+        : myBase.x - 1             // just outside left wall
+
+      const distToDoor = Math.sqrt(
+        (tank.position.x - doorX) ** 2 + (tank.position.y - doorY) ** 2
+      )
+
+      if (distToDoor < 3) {
+        // Close to door — head through it to base center
+        const cx = myBase.x + myBase.w / 2
+        const cy = myBase.y + myBase.h / 2
+        return vecToAngle(cx - tank.position.x, cy - tank.position.y)
+      }
+
+      // Navigate to door entry point first
+      return vecToAngle(doorX - tank.position.x, doorY - tank.position.y)
     }
 
     // If enemy flag has no carrier: go grab it
