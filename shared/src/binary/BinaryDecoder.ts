@@ -269,6 +269,17 @@ export class BinaryDecoder {
       }
     }
 
+    // Decode destroyed obstacles
+    const destroyedObstacles: Vec2[] = []
+    if (this.offset + 2 <= this.view.byteLength) {
+      const destroyedCount = this.readUint16()
+      for (let i = 0; i < destroyedCount; i++) {
+        const dx = this.readUint8()
+        const dy = this.readUint8()
+        destroyedObstacles.push({ x: dx, y: dy })
+      }
+    }
+
     return {
       tick,
       timestamp,
@@ -282,6 +293,7 @@ export class BinaryDecoder {
       boss,
       ctf,
       ctfTimeRemaining,
+      destroyedObstacles,
       leaderboard,
       playersAlive,
       timeElapsed

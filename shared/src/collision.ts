@@ -4,6 +4,7 @@ export class SpatialGrid {
   private buckets: Map<number, Obstacle[]> = new Map()
   private bucketSize: number
   private mapWidth: number
+  destroyedPositions: Array<{ x: number; y: number }> = []
 
   constructor(mapWidth: number, mapHeight: number, bucketSize = 100) {
     this.bucketSize = bucketSize
@@ -34,6 +35,7 @@ export class SpatialGrid {
     const idx = bucket.indexOf(obstacle)
     if (idx === -1) return false
     bucket.splice(idx, 1)
+    this.destroyedPositions.push({ x: obstacle.x, y: obstacle.y })
     return true
   }
 

@@ -184,6 +184,7 @@ export interface GameState {
   boss: Boss | null
   ctf: CTFState | null
   ctfTimeRemaining: number  // Seconds remaining in CTF round (0 = not CTF)
+  destroyedObstacles: Vec2[]  // Positions of destroyed brick walls
   leaderboard: LeaderboardEntry[]
   playersAlive: number
   timeElapsed: number

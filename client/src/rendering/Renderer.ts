@@ -31,6 +31,8 @@ export class Renderer {
   private prevBullets: Map<string, Bullet> = new Map()
   // Track stars to detect collection
   private prevActiveStars = new Set<string>()
+  // Track already-processed destroyed obstacles (so effects only trigger once)
+  private processedDestroyedObstacles = new Set<string>()
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -94,6 +96,20 @@ export class Renderer {
 
     // Map
     this.mapRenderer.render(ctx, camera, cellPx)
+
+    // Sync destroyed obstacles: remove from MapRenderer + trigger explosion effects
+    if (state.destroyedObstacles) {
+      for (const pos of state.destroyedObstacles) {
+        const key = `${pos.x},${pos.y}`
+        if (!this.processedDestroyedObstacles.has(key)) {
+          this.processedDestroyedObstacles.add(key)
+          this.mapRenderer.removeObstacle(pos.x, pos.y)
+          // Brick explosion effect
+          this.effects.addBrickDebris(pos.x + 0.5, pos.y + 0.5)
+          this.effects.addBulletImpact(pos.x + 0.5, pos.y + 0.5, true)
+        }
+      }
+    }
 
     // Zone overlay
     this.zoneRenderer.render(ctx, state.zone, camera, cellPx)

@@ -606,6 +606,7 @@ export class GameRoom {
       boss: null,  // Boss is now a regular tank, not a separate entity
       ctf: this.ctfManager ? this.ctfManager.getState() : null,
       ctfTimeRemaining: this.mapId === 'ctf' ? Math.max(0, Math.ceil((240000 - timeElapsed) / 1000)) : 0,
+      destroyedObstacles: this.grid.destroyedPositions,
       leaderboard,
       playersAlive: this.playerManager.aliveCount,
       timeElapsed

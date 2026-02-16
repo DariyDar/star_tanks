@@ -129,6 +129,20 @@ export class GameClient {
   updateState(state: GameState): void {
     this.state = state
 
+    // Remove destroyed obstacles from local map
+    if (state.destroyedObstacles && state.destroyedObstacles.length > 0) {
+      for (const pos of state.destroyedObstacles) {
+        const key = `${pos.x},${pos.y}`
+        if (this.obstacleSet.has(key)) {
+          this.obstacleSet.delete(key)
+          const idx = this.obstacles.findIndex(o => o.x === pos.x && o.y === pos.y)
+          if (idx !== -1) {
+            this.obstacles.splice(idx, 1)
+          }
+        }
+      }
+    }
+
     const myTank = this.getMyTank()
     if (myTank) {
       if (this.predictedPos) {

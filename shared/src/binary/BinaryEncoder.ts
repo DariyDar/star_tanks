@@ -40,7 +40,10 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   // CTF encoding size: hasCTF(1) + flagAx(4) + flagAy(4) + flagBx(4) + flagBy(4) + scoreA(1) + scoreB(1) + baseAx(2) + baseAy(2) + baseAw(2) + baseAh(2) + baseBx(2) + baseBy(2) + baseBw(2) + baseBh(2) + flags(1) = 36
   const ctfSize = state.ctf ? 36 : 1
 
-  // Header(17) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*35) + Leaderboard(1+n*6) + Boss(1 or 25) + CTF(1 or 36)
+  // Destroyed obstacles: count(2) + [x(1) + y(1)] per destroyed
+  const destroyedCount = state.destroyedObstacles?.length ?? 0
+
+  // Header(17) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*35) + Leaderboard(1+n*6) + Boss(1 or 25) + CTF(1 or 36) + Destroyed(2+n*2)
   const size = 17 + 18 +
     1 + starCount * STAR_ITEM_SIZE +
     1 + bulletCount * BULLET_ENCODE_SIZE +
@@ -49,7 +52,8 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     1 + tankCount * TANK_ENCODE_SIZE +
     1 + leaderboardCount * LEADERBOARD_ENTRY_SIZE +
     bossSize +
-    ctfSize
+    ctfSize +
+    2 + destroyedCount * 2
 
   const buffer = new ArrayBuffer(size)
   const view = new DataView(buffer)
@@ -166,6 +170,15 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     view.setUint8(offset, ctfFlags); offset += 1
   } else {
     view.setUint8(offset, 0); offset += 1 // hasCTF = false
+  }
+
+  // Destroyed obstacles
+  view.setUint16(offset, destroyedCount, true); offset += 2
+  if (state.destroyedObstacles) {
+    for (const pos of state.destroyedObstacles) {
+      view.setUint8(offset, pos.x); offset += 1
+      view.setUint8(offset, pos.y); offset += 1
+    }
   }
 
   return buffer
