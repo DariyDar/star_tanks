@@ -1,4 +1,5 @@
 import type { Bullet } from '@shared/types.js'
+import { FIRE_COOLDOWN, FIRE_COOLDOWN_RAPID } from '@shared/constants.js'
 import { GameClient } from './game/GameClient.js'
 import { InputManager } from './game/InputManager.js'
 import { Renderer } from './rendering/Renderer.js'
@@ -50,7 +51,7 @@ const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 
 // Bullet impact tracking
 let prevBullets: Map<string, Bullet> = new Map()
-let wasFiring = false
+let lastClientFireTime = 0  // Client-side fire cooldown tracking
 
 // Stuck detection
 let stuckTimer = 0
@@ -251,21 +252,27 @@ function gameLoop(now: number) {
       })
     }
 
-    // Recoil and muzzle flash on fire start
+    // Recoil and muzzle flash — only when cooldown allows (matches server logic)
     const firing = input.isFiring()
-    if (firing && !wasFiring) {
-      renderer.effects.triggerRecoil(aimAngle)
-
-      // Add muzzle flash at gun barrel position
+    const nowMs = performance.now()
+    if (firing) {
       const myTank = client.getMyTank()
-      if (myTank) {
-        const barrelLength = myTank.tankRadius * 1.2
-        const flashX = myTank.position.x + Math.sin(myTank.turretAngle) * barrelLength
-        const flashY = myTank.position.y - Math.cos(myTank.turretAngle) * barrelLength
-        renderer.effects.addMuzzleFlash(flashX, flashY, myTank.turretAngle)
+      const cooldown = myTank?.activePowerUp === 'rapidFire' ? FIRE_COOLDOWN_RAPID : FIRE_COOLDOWN
+      if (nowMs - lastClientFireTime >= cooldown) {
+        lastClientFireTime = nowMs
+        renderer.effects.triggerRecoil(aimAngle)
+
+        if (myTank) {
+          const barrelLength = myTank.tankRadius * 1.2
+          const displayPos = client.getMyDisplayPosition()
+          const px = displayPos?.x ?? myTank.position.x
+          const py = displayPos?.y ?? myTank.position.y
+          const flashX = px + Math.sin(aimAngle) * barrelLength
+          const flashY = py - Math.cos(aimAngle) * barrelLength
+          renderer.effects.addMuzzleFlash(flashX, flashY, aimAngle)
+        }
       }
     }
-    wasFiring = firing
 
     // Get interpolated state from server
     const state = stateBuffer.getInterpolatedState()
