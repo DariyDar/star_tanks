@@ -67,7 +67,7 @@ export class GameRoom {
     this.physics = new PhysicsEngine(this.grid, this.map.width, this.map.height)
     this.bulletManager = new BulletManager(this.grid, this.map.width, this.map.height)
     this.playerManager = new PlayerManager(this.map.spawnPoints)
-    this.starManager = new StarManager([]) // Stars come from bots, not map
+    this.starManager = new StarManager(this.map.starPositions)
     this.starManager.setGrid(this.grid, this.map.width, this.map.height)
     this.powerUpManager = new PowerUpManager(this.map.width, this.map.height)
     this.powerUpManager.setGrid(this.grid)

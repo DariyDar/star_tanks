@@ -63,32 +63,40 @@ export function generateCTFMap(): MapDefinition {
   // Symmetrical obstacles in the middle zone
   const midX = MAP_WIDTH / 2
 
-  // Central brick structures (mirrored)
-  for (let i = 0; i < 8; i++) {
+  // Central brick structures — larger rooms with doorways (mirrored)
+  for (let i = 0; i < 16; i++) {
     const offX = rngInt(rng, 15, midX - 10)
     const offY = rngInt(rng, 10, MAP_HEIGHT - 10)
-    const w = rngInt(rng, 3, 7)
-    const h = rngInt(rng, 3, 6)
+    const w = rngInt(rng, 4, 9)
+    const h = rngInt(rng, 4, 8)
+    const doorSide = rngInt(rng, 0, 4) // 0=top, 1=right, 2=bottom, 3=left
+    const doorPos = rngInt(rng, 1, Math.max(2, (doorSide < 2 ? w : h) - 2))
 
-    // Left half
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
         const isEdge = dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
-        if (isEdge) {
-          addObstacle(midX - offX + dx, offY + dy, ObstacleType.Brick)
-          // Mirror on right half
-          addObstacle(midX + offX - dx, offY + dy, ObstacleType.Brick)
-        }
+        if (!isEdge) continue
+
+        // Create door opening (2-tile gap)
+        let isDoor = false
+        if (doorSide === 0 && dy === 0 && dx >= doorPos && dx <= doorPos + 1) isDoor = true
+        if (doorSide === 2 && dy === h - 1 && dx >= doorPos && dx <= doorPos + 1) isDoor = true
+        if (doorSide === 1 && dx === w - 1 && dy >= doorPos && dy <= doorPos + 1) isDoor = true
+        if (doorSide === 3 && dx === 0 && dy >= doorPos && dy <= doorPos + 1) isDoor = true
+        if (isDoor) continue
+
+        addObstacle(midX - offX + dx, offY + dy, ObstacleType.Brick)
+        addObstacle(midX + offX - dx, offY + dy, ObstacleType.Brick)
       }
     }
   }
 
-  // Brick wall segments (mirrored)
-  for (let i = 0; i < 40; i++) {
+  // Brick wall segments — more of them, longer (mirrored)
+  for (let i = 0; i < 70; i++) {
     const offX = rngInt(rng, 5, midX - 5)
     const offY = rngInt(rng, 5, MAP_HEIGHT - 5)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 3, 7)
+    const len = rngInt(rng, 3, 10)
 
     for (let j = 0; j < len; j++) {
       if (horizontal) {
@@ -97,6 +105,39 @@ export function generateCTFMap(): MapDefinition {
       } else {
         addObstacle(midX - offX, offY + j, ObstacleType.Brick)
         addObstacle(midX + offX, offY + j, ObstacleType.Brick)
+      }
+    }
+  }
+
+  // L-shaped and T-shaped fortifications (mirrored)
+  for (let i = 0; i < 8; i++) {
+    const offX = rngInt(rng, 20, midX - 15)
+    const offY = rngInt(rng, 15, MAP_HEIGHT - 15)
+    const armLen = rngInt(rng, 3, 6)
+
+    // Horizontal arm
+    for (let j = 0; j < armLen; j++) {
+      addObstacle(midX - offX + j, offY, ObstacleType.Brick)
+      addObstacle(midX + offX - j, offY, ObstacleType.Brick)
+    }
+    // Vertical arm (from one end)
+    for (let j = 1; j <= armLen; j++) {
+      addObstacle(midX - offX, offY + j, ObstacleType.Brick)
+      addObstacle(midX + offX, offY + j, ObstacleType.Brick)
+    }
+  }
+
+  // Small bunkers near bases — 3x3 rooms with one opening (mirrored)
+  for (let i = 0; i < 4; i++) {
+    const offX = rngInt(rng, 32, midX - 20)
+    const offY = rngInt(rng, 20, MAP_HEIGHT - 20)
+    for (let dy = 0; dy < 3; dy++) {
+      for (let dx = 0; dx < 3; dx++) {
+        const isEdge = dx === 0 || dx === 2 || dy === 0 || dy === 2
+        if (!isEdge) continue
+        if (dy === 2 && dx === 1) continue // door at bottom center
+        addObstacle(midX - offX + dx, offY + dy, ObstacleType.Brick)
+        addObstacle(midX + offX - dx, offY + dy, ObstacleType.Brick)
       }
     }
   }
