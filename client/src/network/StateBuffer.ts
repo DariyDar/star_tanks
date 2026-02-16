@@ -9,7 +9,7 @@ interface TimedState {
   bulletMap: Map<string, Bullet> // Pre-built for O(1) lookup
 }
 
-const INTERPOLATION_BUFFER_MS = 100 // Render 100ms behind latest to allow smooth interpolation
+const INTERPOLATION_BUFFER_MS = 150 // Render 150ms behind latest (server sends at 10Hz = 100ms intervals)
 
 export class StateBuffer {
   private buffer: TimedState[] = []

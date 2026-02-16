@@ -11,9 +11,25 @@ export class PlayerManager {
   private spawnPoints: Vec2[]
   private spawnIndex = 0
   private colorIndex = 0
+  // Cached arrays — rebuilt when tanks change
+  private _allTanksCache: Tank[] = []
+  private _aliveTanksCache: Tank[] = []
+  private _tanksDirty = true
 
   constructor(spawnPoints: Vec2[]) {
     this.spawnPoints = spawnPoints
+  }
+
+  /** Mark caches as stale — call once per tick before reads */
+  invalidateCache(): void {
+    this._tanksDirty = true
+  }
+
+  private rebuildCache(): void {
+    if (!this._tanksDirty) return
+    this._allTanksCache = Array.from(this.tanks.values())
+    this._aliveTanksCache = this._allTanksCache.filter(t => t.isAlive)
+    this._tanksDirty = false
   }
 
   addPlayer(id: string, name: string, isBot: boolean, color?: string, isBoss: boolean = false): Tank {
@@ -71,6 +87,7 @@ export class PlayerManager {
 
     this.tanks.set(id, tank)
     this.inputQueues.set(id, [])
+    this._tanksDirty = true
     return tank
   }
 
@@ -78,6 +95,7 @@ export class PlayerManager {
     const tank = this.tanks.get(id)
     this.tanks.delete(id)
     this.inputQueues.delete(id)
+    this._tanksDirty = true
     return tank
   }
 
@@ -86,11 +104,13 @@ export class PlayerManager {
   }
 
   getAllTanks(): Tank[] {
-    return Array.from(this.tanks.values())
+    this.rebuildCache()
+    return this._allTanksCache
   }
 
   getAliveTanks(): Tank[] {
-    return this.getAllTanks().filter(t => t.isAlive)
+    this.rebuildCache()
+    return this._aliveTanksCache
   }
 
   queueInput(playerId: string, input: PlayerInput): void {
@@ -123,6 +143,7 @@ export class PlayerManager {
     if (!tank || !tank.isAlive) return 0
 
     tank.isAlive = false
+    this._tanksDirty = true
     const droppedStars = tank.stars
     tank.stars = 0
 
@@ -184,6 +205,7 @@ export class PlayerManager {
     tank.maxHp = getMaxHp(tank.stars, tank.isBot)
     tank.hp = tank.maxHp
     tank.isAlive = true
+    this._tanksDirty = true
     tank.activePowerUp = null
     tank.powerUpEndTime = 0
     tank.lastFireTime = 0

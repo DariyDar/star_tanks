@@ -52,6 +52,8 @@ export class GameRoom {
   private unstickCooldowns = new Map<string, number>()
   private botPositions = new Map<string, { x: number; y: number; since: number }>()
   private ctfBossSpawned = false
+  private cachedLeaderboard: LeaderboardEntry[] = []
+  private leaderboardTick = 0
 
   constructor(roomId: string, mapId: MapId, events: GameRoomEvents) {
     this.roomId = roomId
@@ -296,6 +298,9 @@ export class GameRoom {
   private tick(tickNum: number, _deltaMs: number): void {
     this.now = Date.now()
     const elapsed = this.now - this.startTime
+
+    // Invalidate tank cache once at the start of tick
+    this.playerManager.invalidateCache()
 
     // 1. Process player inputs (use latest input only to prevent lag)
     for (const tank of this.playerManager.getAllTanks()) {
@@ -544,9 +549,11 @@ export class GameRoom {
       this.phase = GamePhase.Shrinking
     }
 
-    // 10. Broadcast state
-    const state = this.buildGameState(tickNum, elapsed)
-    this.events.onStateUpdate(state, this)
+    // 10. Broadcast state (send at 10Hz — every 2nd tick)
+    if (tickNum % 2 === 0) {
+      const state = this.buildGameState(tickNum, elapsed)
+      this.events.onStateUpdate(state, this)
+    }
   }
 
   private shouldBotFire(bot: Tank, allTanks: Tank[]): boolean {
@@ -585,15 +592,20 @@ export class GameRoom {
 
   private buildGameState(tick: number, timeElapsed: number): GameState {
     const tanks = this.playerManager.getAllTanks()
-    const leaderboard: LeaderboardEntry[] = tanks
-      .map(t => ({
-        id: t.id,
-        name: t.name,
-        kills: t.kills,
-        stars: t.stars,
-        isAlive: t.isAlive
-      }))
-      .sort((a, b) => b.stars - a.stars || b.kills - a.kills)
+
+    // Rebuild leaderboard every 20 ticks (~1 second) to avoid sorting every frame
+    if (tick - this.leaderboardTick >= 20 || this.cachedLeaderboard.length === 0) {
+      this.leaderboardTick = tick
+      this.cachedLeaderboard = tanks
+        .map(t => ({
+          id: t.id,
+          name: t.name,
+          kills: t.kills,
+          stars: t.stars,
+          isAlive: t.isAlive
+        }))
+        .sort((a, b) => b.stars - a.stars || b.kills - a.kills)
+    }
 
     return {
       tick,
@@ -609,7 +621,7 @@ export class GameRoom {
       ctf: this.ctfManager ? this.ctfManager.getState() : null,
       ctfTimeRemaining: this.mapId === 'ctf' ? Math.max(0, Math.ceil((240000 - timeElapsed) / 1000)) : 0,
       destroyedObstacles: this.grid.destroyedPositions,
-      leaderboard,
+      leaderboard: this.cachedLeaderboard,
       playersAlive: this.playerManager.aliveCount,
       timeElapsed
     }
