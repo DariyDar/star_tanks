@@ -2,6 +2,8 @@ import type { GameState, Tank } from '@shared/types.js'
 
 export class HudRenderer {
   shopOpen = false
+  showStuckHint = false
+  unstickCooldownMs = 0
 
   render(ctx: CanvasRenderingContext2D, state: GameState, myTank: Tank | undefined): void {
     const w = ctx.canvas.width
@@ -33,6 +35,11 @@ export class HudRenderer {
       if (myTank?.hasFlag) {
         this.renderFlagCarrierWarning(ctx, w, h)
       }
+    }
+
+    // Stuck hint
+    if (this.showStuckHint && myTank?.isAlive) {
+      this.renderStuckHint(ctx, w, h)
     }
 
     // Shop overlay
@@ -301,6 +308,27 @@ export class HudRenderer {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     ctx.fillText('YOU HAVE THE FLAG!', w / 2, 52)
+  }
+
+  private renderStuckHint(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const onCooldown = this.unstickCooldownMs > 0
+    const pulse = 0.6 + 0.3 * Math.sin(Date.now() / 300)
+
+    const text = onCooldown
+      ? `ПРОБЕЛ (${Math.ceil(this.unstickCooldownMs / 1000)}с)`
+      : 'Нажми ПРОБЕЛ если застрял'
+    const textColor = onCooldown ? `rgba(150, 150, 150, ${pulse})` : `rgba(255, 220, 100, ${pulse})`
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    const textW = ctx.measureText(text).width + 30 || 250
+    this.roundRect(ctx, (w - textW) / 2, h - 60, textW, 30, 8)
+    ctx.fill()
+
+    ctx.fillStyle = textColor
+    ctx.font = 'bold 14px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, w / 2, h - 45)
   }
 
   private renderShop(ctx: CanvasRenderingContext2D, w: number, h: number, tank: Tank): void {

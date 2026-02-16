@@ -702,4 +702,9 @@ export class Renderer {
   setShopOpen(open: boolean): void {
     this.hudRenderer.shopOpen = open
   }
+
+  setStuckHint(isStuck: boolean, cooldownMs: number): void {
+    this.hudRenderer.showStuckHint = isStuck
+    this.hudRenderer.unstickCooldownMs = cooldownMs
+  }
 }

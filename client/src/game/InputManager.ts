@@ -21,6 +21,10 @@ export class InputManager {
   shopOpen = false
   private pendingShopBuy: number | null = null
 
+  // Unstick state
+  private pendingUnstick = false
+  private lastUnstickTime = 0
+
   constructor() {
     window.addEventListener('keydown', (e) => {
       // Ignore keystrokes when typing in input fields
@@ -40,6 +44,15 @@ export class InputManager {
         if (e.key === '1') { this.pendingShopBuy = 1; this.shopOpen = false }
         if (e.key === '2') { this.pendingShopBuy = 2; this.shopOpen = false }
         if (e.key === '3') { this.pendingShopBuy = 3; this.shopOpen = false }
+      }
+      // Spacebar: unstick (10s cooldown)
+      if (e.key === ' ' || e.code === 'Space') {
+        const now = Date.now()
+        if (now - this.lastUnstickTime >= 10000) {
+          this.pendingUnstick = true
+          this.lastUnstickTime = now
+        }
+        e.preventDefault()
       }
     })
     window.addEventListener('keyup', (e) => {
@@ -138,5 +151,17 @@ export class InputManager {
       return buy
     }
     return undefined
+  }
+
+  consumeUnstick(): boolean {
+    if (this.pendingUnstick) {
+      this.pendingUnstick = false
+      return true
+    }
+    return false
+  }
+
+  get unstickCooldownRemaining(): number {
+    return Math.max(0, 10000 - (Date.now() - this.lastUnstickTime))
   }
 }

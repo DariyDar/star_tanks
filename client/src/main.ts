@@ -52,7 +52,11 @@ const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 let prevBullets: Map<string, Bullet> = new Map()
 let wasFiring = false
 
-function joinGame(name: string, mapId: string, color: string) {
+// Stuck detection
+let stuckTimer = 0
+let lastTankPos = { x: 0, y: 0 }
+
+function joinGame(name: string, mapId: string, color: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number) {
   lastPlayerName = name
   lastMapId = mapId
   stateBuffer.clear()
@@ -63,15 +67,15 @@ function joinGame(name: string, mapId: string, color: string) {
   renderer.setCustomTankColors(lobby.customTankColors)
 
   if (socket.connected) {
-    socket.join(name, mapId, color)
+    socket.join(name, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
   }
 }
 
 function showLobby() {
   exitBtn.style.display = 'none'
-  lobby.show((name, mapId, color) => {
+  lobby.show((name, mapId, color, ctfTeam, ctfBotsA, ctfBotsB) => {
     lastError = null  // Clear error when attempting to join
-    joinGame(name, mapId, color)
+    joinGame(name, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
   }, accountStars ?? undefined, lastError ?? undefined)
 }
 
@@ -200,18 +204,35 @@ function gameLoop(now: number) {
     // Apply input locally for instant response
     client.applyLocalInput(moveAngle, aimAngle, dt)
 
+    // Stuck detection
+    const myTank = client.getMyTank()
+    if (myTank && myTank.isAlive) {
+      const sdx = myTank.position.x - lastTankPos.x
+      const sdy = myTank.position.y - lastTankPos.y
+      if (sdx * sdx + sdy * sdy < 0.01) {
+        stuckTimer += dt
+      } else {
+        stuckTimer = 0
+      }
+      lastTankPos = { x: myTank.position.x, y: myTank.position.y }
+    } else {
+      stuckTimer = 0
+    }
+
     // Send input to server at fixed rate
     inputSendTimer += dt * 1000
     if (inputSendTimer >= INPUT_SEND_INTERVAL) {
       inputSendTimer -= INPUT_SEND_INTERVAL
       const shopBuy = input.consumeShopBuy()
+      const unstick = input.consumeUnstick()
       socket.sendInput({
         tick: client.state?.tick ?? 0,
         sequenceNumber: sequenceNumber++,
         moveAngle,
         aimAngle,
         fire: input.isFiring(),
-        shopBuy
+        shopBuy,
+        unstick: unstick || undefined
       })
     }
 
@@ -254,6 +275,7 @@ function gameLoop(now: number) {
     resultScreen.render(canvas.getContext('2d')!)
   } else {
     renderer.setShopOpen(input.shopOpen)
+    renderer.setStuckHint(stuckTimer > 3, input.unstickCooldownRemaining)
     renderer.render(client)
     if (mobileControls.isActive) {
       mobileControls.render(canvas.getContext('2d')!)

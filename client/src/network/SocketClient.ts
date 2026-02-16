@@ -95,11 +95,14 @@ export class SocketClient {
     this.socket.connect()
   }
 
-  join(playerName: string, mapId: string, color?: string): void {
+  join(playerName: string, mapId: string, color?: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number): void {
     const payload: ClientJoinPayload = {
       playerName,
       mapId: mapId as ClientJoinPayload['mapId'],
-      color
+      color,
+      ctfTeam,
+      ctfBotsA,
+      ctfBotsB
     }
     this.socket.emit(CLIENT_EVENTS.JOIN, payload)
   }

@@ -88,9 +88,10 @@ export class CTFManager {
             if (t.team === 'b') t.stars += 2
           }
           events.push({ type: 'flagCapture', team: 'b', playerId: tank.id })
+        } else {
+          // Update flag position to carrier position (only if not captured)
+          this.flagA = { x: tx, y: ty }
         }
-        // Update flag position to carrier position
-        this.flagA = { x: tx, y: ty }
       }
 
       // Team A carrier delivers flag B to Team A's base
@@ -106,9 +107,10 @@ export class CTFManager {
             if (t.team === 'a') t.stars += 2
           }
           events.push({ type: 'flagCapture', team: 'a', playerId: tank.id })
+        } else {
+          // Update flag position to carrier position (only if not captured)
+          this.flagB = { x: tx, y: ty }
         }
-        // Update flag position to carrier position
-        this.flagB = { x: tx, y: ty }
       }
 
       // Friendly tank returns their dropped flag

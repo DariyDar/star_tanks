@@ -41,14 +41,14 @@ export class SocketHandler {
   }
 
   private handleJoin(socket: Socket, payload: ClientJoinPayload): void {
-    const { playerName, mapId, color } = payload
+    const { playerName, mapId, color, ctfTeam, ctfBotsA, ctfBotsB } = payload
 
     if (!playerName || !mapId) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Invalid join payload' })
       return
     }
 
-    const result = this.roomManager.joinRoom(socket.id, playerName, mapId, color)
+    const result = this.roomManager.joinRoom(socket.id, playerName, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
     if (!result) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 2 stars)' })
       return

@@ -203,6 +203,7 @@ export interface PlayerInput {
   aimAngle: number            // turret direction in radians
   fire: boolean               // Whether player wants to fire this tick
   shopBuy?: number            // 1=speed, 2=hp, 3=x2damage (costs 2 stars each)
+  unstick?: boolean           // Spacebar teleport when stuck (10s cooldown)
 }
 
 export interface RoomInfo {

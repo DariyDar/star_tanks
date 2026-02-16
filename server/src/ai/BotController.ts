@@ -7,6 +7,15 @@ export interface BotMoveResult {
   aimAngle: number
 }
 
+export interface CTFInfo {
+  flagA: Vec2
+  flagB: Vec2
+  flagACarrier: string | null
+  flagBCarrier: string | null
+  baseA: { x: number; y: number; w: number; h: number }
+  baseB: { x: number; y: number; w: number; h: number }
+}
+
 interface BotData {
   patrolTarget: Vec2 | null
   lastRetarget: number
@@ -54,7 +63,8 @@ export class BotController {
     powerUps: PowerUp[],
     portals: Portal[],
     zone: Zone,
-    now: number
+    now: number,
+    ctf?: CTFInfo
   ): Map<string, BotMoveResult> {
     const moves = new Map<string, BotMoveResult>()
 
@@ -79,14 +89,150 @@ export class BotController {
         data = this.bots.get(tank.id)!
       }
 
-      const moveAngle = this.calculateMoveAngle(tank, data, tanks, zone, now, richestPlayer, targetCounts)
-      const aimAngle = this.calculateAimAngle(tank, data, tanks)
+      let moveAngle: number | null
+      let aimAngle: number
+
+      if (ctf && tank.team) {
+        // CTF mode: specialized behavior
+        moveAngle = this.calculateCTFMoveAngle(tank, data, tanks, zone, now, ctf)
+        aimAngle = this.calculateCTFAimAngle(tank, data, tanks)
+      } else {
+        moveAngle = this.calculateMoveAngle(tank, data, tanks, zone, now, richestPlayer, targetCounts)
+        aimAngle = this.calculateAimAngle(tank, data, tanks)
+      }
 
       data.lastAimAngle = aimAngle
       moves.set(tank.id, { moveAngle, aimAngle })
     }
 
     return moves
+  }
+
+  // --- CTF-specific bot logic ---
+
+  private calculateCTFMoveAngle(
+    tank: Tank,
+    data: BotData,
+    tanks: Tank[],
+    zone: Zone,
+    now: number,
+    ctf: CTFInfo
+  ): number | null {
+    // Bot repulsion (same as normal mode)
+    const bots = tanks.filter(t => t.isBot && t.isAlive && t.id !== tank.id)
+    let repulsionX = 0, repulsionY = 0, repulsionCount = 0
+    for (const other of bots) {
+      const dx = tank.position.x - other.position.x
+      const dy = tank.position.y - other.position.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < BOT_REPULSION_RANGE && dist > 0.1) {
+        const strength = (BOT_REPULSION_RANGE - dist) / BOT_REPULSION_RANGE * BOT_REPULSION_STRENGTH
+        repulsionX += (dx / dist) * strength
+        repulsionY += (dy / dist) * strength
+        repulsionCount++
+      }
+    }
+    if (repulsionCount > 0 && Math.sqrt(repulsionX * repulsionX + repulsionY * repulsionY) > 0.5) {
+      return vecToAngle(repulsionX, repulsionY)
+    }
+
+    const myTeam = tank.team!
+    const enemyTeam = myTeam === 'a' ? 'b' : 'a'
+
+    // If carrying flag: go to own base to capture
+    if (tank.hasFlag) {
+      const myBase = myTeam === 'a' ? ctf.baseA : ctf.baseB
+      const baseCenter = { x: myBase.x + myBase.w / 2, y: myBase.y + myBase.h / 2 }
+      const dx = baseCenter.x - tank.position.x
+      const dy = baseCenter.y - tank.position.y
+      return vecToAngle(dx, dy)
+    }
+
+    // If enemy flag has no carrier: go grab it
+    const enemyFlagCarrier = myTeam === 'a' ? ctf.flagBCarrier : ctf.flagACarrier
+    const enemyFlagPos = myTeam === 'a' ? ctf.flagB : ctf.flagA
+    if (!enemyFlagCarrier) {
+      // Some bots go for flag, others fight
+      if (data.patrolIndex % 3 !== 2) {
+        const dx = enemyFlagPos.x - tank.position.x
+        const dy = enemyFlagPos.y - tank.position.y
+        return vecToAngle(dx, dy)
+      }
+    }
+
+    // Chase nearest enemy (bot or player)
+    let nearestEnemy: Tank | null = null
+    let nearestDist = Infinity
+    for (const t of tanks) {
+      if (!t.isAlive || t.id === tank.id) continue
+      if (t.team === myTeam) continue // same team, don't chase
+      const dist = distance(tank.position, t.position)
+      if (dist < CHASE_RANGE && dist < nearestDist) {
+        // Stealth check
+        if (!t.inBush || dist <= STEALTH_REVEAL_DISTANCE) {
+          nearestDist = dist
+          nearestEnemy = t
+        }
+      }
+    }
+    if (nearestEnemy) {
+      const dx = nearestEnemy.position.x - tank.position.x
+      const dy = nearestEnemy.position.y - tank.position.y
+      return vecToAngle(dx, dy)
+    }
+
+    // Patrol: move toward enemy base area
+    if (!data.patrolTarget || now - data.lastRetarget > RETARGET_INTERVAL) {
+      const enemyBase = myTeam === 'a' ? ctf.baseB : ctf.baseA
+      const targetX = enemyBase.x + Math.random() * enemyBase.w
+      const targetY = enemyBase.y + Math.random() * enemyBase.h
+      data.patrolTarget = { x: targetX, y: targetY }
+      data.lastRetarget = now
+    }
+
+    if (data.patrolTarget) {
+      const dx = data.patrolTarget.x - tank.position.x
+      const dy = data.patrolTarget.y - tank.position.y
+      if (dx * dx + dy * dy < 4) {
+        data.patrolTarget = null
+        return null
+      }
+      return vecToAngle(dx, dy)
+    }
+
+    return null
+  }
+
+  private calculateCTFAimAngle(tank: Tank, data: BotData, tanks: Tank[]): number {
+    const myTeam = tank.team!
+    // Aim at nearest enemy (any team member - bots AND players)
+    let nearestEnemy: Tank | null = null
+    let nearestDistSq = Infinity
+
+    for (const t of tanks) {
+      if (!t.isAlive || t.id === tank.id) continue
+      if (t.team === myTeam) continue // don't aim at teammates
+
+      const dx = t.position.x - tank.position.x
+      const dy = t.position.y - tank.position.y
+      const distSq = dx * dx + dy * dy
+      const dist = Math.sqrt(distSq)
+
+      if (!t.inBush || dist <= STEALTH_REVEAL_DISTANCE) {
+        if (distSq < nearestDistSq) {
+          nearestDistSq = distSq
+          nearestEnemy = t
+        }
+      }
+    }
+
+    if (nearestEnemy) {
+      const dx = nearestEnemy.position.x - tank.position.x
+      const dy = nearestEnemy.position.y - tank.position.y
+      return vecToAngle(dx, dy)
+    }
+
+    return data.lastAimAngle || tank.hullAngle
   }
 
   private findRichestPlayer(players: Tank[]): Tank | null {

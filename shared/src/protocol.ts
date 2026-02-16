@@ -8,6 +8,9 @@ export interface ClientJoinPayload {
   playerName: string
   mapId: MapId
   color?: string  // Player's chosen tank color
+  ctfTeam?: 'a' | 'b'    // Chosen team for CTF mode
+  ctfBotsA?: number       // Number of bots for team A
+  ctfBotsB?: number       // Number of bots for team B
 }
 
 export interface ClientInputPayload extends PlayerInput {}

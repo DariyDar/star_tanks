@@ -58,7 +58,7 @@ export class RoomManager {
     return room
   }
 
-  joinRoom(playerId: string, playerName: string, mapId: MapId, color?: string): { room: GameRoom; accountStars: number; playerColor: string } | null {
+  joinRoom(playerId: string, playerName: string, mapId: MapId, color?: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number): { room: GameRoom; accountStars: number; playerColor: string } | null {
     // Get or create player account
     const account = this.accountManager.getOrCreateAccount(playerId, playerName, color)
 
@@ -73,7 +73,7 @@ export class RoomManager {
     }
 
     const room = this.findOrCreateRoom(mapId)
-    const success = room.addPlayer(playerId, playerName, account.color)  // Pass color to room
+    const success = room.addPlayer(playerId, playerName, account.color, ctfTeam, ctfBotsA, ctfBotsB)
     if (!success) {
       // Refund entry fee if couldn't join room
       this.accountManager.addStarsFromPortal(playerId, 2)

@@ -123,9 +123,15 @@ export class BulletManager {
   }
 
   private findTankHit(bullet: Bullet, tanks: Tank[]): Tank | null {
+    // Find owner's team for friendly fire check
+    const owner = tanks.find(t => t.id === bullet.ownerId)
+    const ownerTeam = owner?.team
+
     for (const tank of tanks) {
       if (!tank.isAlive) continue
       if (tank.id === bullet.ownerId) continue
+      // Prevent friendly fire in team modes (CTF)
+      if (ownerTeam && tank.team === ownerTeam) continue
       const dx = bullet.position.x - tank.position.x
       const dy = bullet.position.y - tank.position.y
       const hitRadius = tank.tankRadius + BULLET_HIT_BUFFER

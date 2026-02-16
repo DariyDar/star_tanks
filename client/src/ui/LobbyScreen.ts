@@ -44,12 +44,18 @@ export class LobbyScreen {
   private selectedMap: MapId = (localStorage.getItem('tankbr_map') as MapId) || 'lakes'
   private selectedColor = localStorage.getItem('tankbr_color') ?? TANK_COLORS[0]
   private tankColors: TankColors = loadTankColors()
-  private onJoin: ((name: string, mapId: MapId, color: string) => void) | null = null
+  private onJoin: ((name: string, mapId: MapId, color: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number) => void) | null = null
   private nameInput: HTMLInputElement | null = null
   private container: HTMLDivElement | null = null
   private accountStars: number | null = null
   private errorMessage: string | null = null
   private previewCanvas: HTMLCanvasElement | null = null
+
+  // CTF settings
+  private ctfTeam: 'a' | 'b' = 'a'
+  private ctfBotsA = 3
+  private ctfBotsB = 3
+  private ctfPanel: HTMLDivElement | null = null
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -57,7 +63,7 @@ export class LobbyScreen {
     return this.tankColors
   }
 
-  show(onJoin: (name: string, mapId: MapId, color: string) => void, accountStars?: number, errorMessage?: string): void {
+  show(onJoin: (name: string, mapId: MapId, color: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number) => void, accountStars?: number, errorMessage?: string): void {
     this.visible = true
     this.onJoin = onJoin
     this.accountStars = accountStars ?? null
@@ -359,12 +365,115 @@ export class LobbyScreen {
         btn.style.borderColor = 'rgba(255,215,0,0.6)'
         btn.style.background = 'rgba(255,215,0,0.1)'
         btn.style.boxShadow = '0 0 15px rgba(255,215,0,0.15)'
+
+        // Show/hide CTF settings panel
+        if (this.ctfPanel) {
+          this.ctfPanel.style.display = info.id === 'ctf' ? 'flex' : 'none'
+        }
       })
 
       mapGrid.appendChild(btn)
     }
     mapSection.appendChild(mapGrid)
     wrapper.appendChild(mapSection)
+
+    // CTF settings panel (shown only when CTF map selected)
+    this.ctfPanel = document.createElement('div')
+    this.ctfPanel.style.cssText = `
+      width: 100%; margin-bottom: 24px; display: ${this.selectedMap === 'ctf' ? 'flex' : 'none'};
+      flex-direction: column; align-items: center; gap: 14px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 18px;
+    `
+
+    const ctfTitle = document.createElement('div')
+    ctfTitle.textContent = 'НАСТРОЙКИ CTF'
+    ctfTitle.style.cssText = 'font-size: 15px; letter-spacing: 3px; color: rgba(170,170,170,0.7);'
+    this.ctfPanel.appendChild(ctfTitle)
+
+    // Team selection
+    const teamRow = document.createElement('div')
+    teamRow.style.cssText = 'display: flex; gap: 12px; align-items: center;'
+
+    const teamLabel = document.createElement('div')
+    teamLabel.textContent = 'Команда:'
+    teamLabel.style.cssText = 'font-size: 14px; color: rgba(200,200,200,0.8);'
+    teamRow.appendChild(teamLabel)
+
+    const teamABtn = document.createElement('button')
+    const teamBBtn = document.createElement('button')
+
+    const updateTeamBtns = () => {
+      teamABtn.style.cssText = `
+        padding: 8px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;
+        border: 2px solid ${this.ctfTeam === 'a' ? '#4488FF' : 'rgba(255,255,255,0.1)'};
+        background: ${this.ctfTeam === 'a' ? 'rgba(68,136,255,0.2)' : 'rgba(255,255,255,0.04)'};
+        color: ${this.ctfTeam === 'a' ? '#4488FF' : '#888'};
+        font-family: 'Segoe UI', Arial, sans-serif;
+      `
+      teamBBtn.style.cssText = `
+        padding: 8px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;
+        border: 2px solid ${this.ctfTeam === 'b' ? '#FF4444' : 'rgba(255,255,255,0.1)'};
+        background: ${this.ctfTeam === 'b' ? 'rgba(255,68,68,0.2)' : 'rgba(255,255,255,0.04)'};
+        color: ${this.ctfTeam === 'b' ? '#FF4444' : '#888'};
+        font-family: 'Segoe UI', Arial, sans-serif;
+      `
+    }
+
+    teamABtn.textContent = 'Синие (A)'
+    teamBBtn.textContent = 'Красные (B)'
+    teamABtn.addEventListener('click', () => { this.ctfTeam = 'a'; updateTeamBtns() })
+    teamBBtn.addEventListener('click', () => { this.ctfTeam = 'b'; updateTeamBtns() })
+    updateTeamBtns()
+
+    teamRow.appendChild(teamABtn)
+    teamRow.appendChild(teamBBtn)
+    this.ctfPanel.appendChild(teamRow)
+
+    // Bot counts
+    const createBotCounter = (label: string, initial: number, onChange: (v: number) => void) => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display: flex; gap: 10px; align-items: center;'
+
+      const lbl = document.createElement('div')
+      lbl.textContent = label
+      lbl.style.cssText = 'font-size: 14px; color: rgba(200,200,200,0.8); width: 160px; text-align: right;'
+      row.appendChild(lbl)
+
+      const minusBtn = document.createElement('button')
+      minusBtn.textContent = '-'
+      minusBtn.style.cssText = `
+        width: 32px; height: 32px; font-size: 18px; font-weight: bold;
+        border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06);
+        color: white; border-radius: 6px; cursor: pointer; font-family: Arial;
+      `
+
+      const countDisplay = document.createElement('div')
+      countDisplay.textContent = `${initial}`
+      countDisplay.style.cssText = 'font-size: 18px; font-weight: bold; color: #FFD700; width: 30px; text-align: center;'
+
+      const plusBtn = document.createElement('button')
+      plusBtn.textContent = '+'
+      plusBtn.style.cssText = minusBtn.style.cssText
+
+      let value = initial
+      minusBtn.addEventListener('click', () => {
+        if (value > 0) { value--; countDisplay.textContent = `${value}`; onChange(value) }
+      })
+      plusBtn.addEventListener('click', () => {
+        if (value < 10) { value++; countDisplay.textContent = `${value}`; onChange(value) }
+      })
+
+      row.appendChild(minusBtn)
+      row.appendChild(countDisplay)
+      row.appendChild(plusBtn)
+      return row
+    }
+
+    this.ctfPanel.appendChild(createBotCounter('Боты в твоей команде:', this.ctfBotsA, v => { this.ctfBotsA = v }))
+    this.ctfPanel.appendChild(createBotCounter('Боты противника:', this.ctfBotsB, v => { this.ctfBotsB = v }))
+
+    wrapper.appendChild(this.ctfPanel)
 
     // Play button
     const playBtn = document.createElement('button')
@@ -396,7 +505,18 @@ export class LobbyScreen {
       localStorage.setItem('tankbr_color', this.selectedColor)
       localStorage.setItem('tankbr_colors', JSON.stringify(this.tankColors))
       this.hide()
-      this.onJoin?.(this.playerName, this.selectedMap, this.selectedColor)
+
+      if (this.selectedMap === 'ctf') {
+        // For CTF: swap bot counts based on chosen team
+        // ctfBotsA/B are "my team" / "enemy team" from player's perspective
+        const myTeamBots = this.ctfTeam === 'a' ? this.ctfBotsA : this.ctfBotsB
+        const enemyTeamBots = this.ctfTeam === 'a' ? this.ctfBotsB : this.ctfBotsA
+        const botsA = this.ctfTeam === 'a' ? myTeamBots : enemyTeamBots
+        const botsB = this.ctfTeam === 'b' ? myTeamBots : enemyTeamBots
+        this.onJoin?.(this.playerName, this.selectedMap, this.selectedColor, this.ctfTeam, botsA, botsB)
+      } else {
+        this.onJoin?.(this.playerName, this.selectedMap, this.selectedColor)
+      }
     })
     wrapper.appendChild(playBtn)
 

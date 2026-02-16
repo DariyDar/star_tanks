@@ -48,6 +48,8 @@ export class GameRoom {
   private phase: GamePhase = GamePhase.Lobby
   private startTime = 0
   private now = 0
+  private unstickCooldowns = new Map<string, number>()
+  private botPositions = new Map<string, { x: number; y: number; since: number }>()
 
   constructor(roomId: string, mapId: MapId, events: GameRoomEvents) {
     this.roomId = roomId
@@ -84,20 +86,33 @@ export class GameRoom {
     this.gameLoop = new GameLoop((tick, deltaMs) => this.tick(tick, deltaMs))
   }
 
-  addPlayer(playerId: string, name: string, color?: string): boolean {
+  // CTF settings from the first player who joins
+  private ctfSettings: { botsA: number; botsB: number } | null = null
+
+  addPlayer(playerId: string, name: string, color?: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number): boolean {
     if (this.playerManager.totalCount >= MAX_PLAYERS) return false
     if (this.phase === GamePhase.GameOver) return false
 
     this.playerManager.addPlayer(playerId, name, false, color)
 
-    // Assign team for CTF mode (auto-balance)
+    // Assign team for CTF mode
     if (this.mapId === 'ctf') {
       const tank = this.playerManager.getTank(playerId)
       if (tank) {
-        const teamACnt = this.playerManager.getAllTanks().filter(t => t.team === 'a').length
-        const teamBCnt = this.playerManager.getAllTanks().filter(t => t.team === 'b').length
-        tank.team = teamACnt <= teamBCnt ? 'a' : 'b'
+        if (ctfTeam) {
+          tank.team = ctfTeam
+        } else {
+          // Auto-balance if no team chosen
+          const teamACnt = this.playerManager.getAllTanks().filter(t => t.team === 'a').length
+          const teamBCnt = this.playerManager.getAllTanks().filter(t => t.team === 'b').length
+          tank.team = teamACnt <= teamBCnt ? 'a' : 'b'
+        }
         tank.color = tank.team === 'a' ? '#4488FF' : '#FF4444'
+      }
+
+      // Store CTF bot settings from first player
+      if (!this.ctfSettings && ctfBotsA !== undefined && ctfBotsB !== undefined) {
+        this.ctfSettings = { botsA: ctfBotsA, botsB: ctfBotsB }
       }
     }
 
@@ -129,6 +144,10 @@ export class GameRoom {
     if (input.shopBuy) {
       this.handleShopPurchase(playerId, input.shopBuy)
     }
+    // Handle unstick (spacebar teleport)
+    if (input.unstick) {
+      this.handleUnstick(playerId)
+    }
     this.playerManager.queueInput(playerId, input)
   }
 
@@ -157,13 +176,38 @@ export class GameRoom {
     }
   }
 
+  private handleUnstick(playerId: string): void {
+    const tank = this.playerManager.getTank(playerId)
+    if (!tank || !tank.isAlive) return
+
+    const now = Date.now()
+    const lastUnstick = this.unstickCooldowns.get(playerId) ?? 0
+    if (now - lastUnstick < 10000) return // 10s cooldown
+
+    this.unstickCooldowns.set(playerId, now)
+    this.teleportNearby(tank)
+  }
+
+  private teleportNearby(tank: import('@tank-br/shared/types.js').Tank): void {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const angle = Math.random() * Math.PI * 2
+      const dist = 3 + Math.random() * 7 // 3-10 tiles away
+      const newX = Math.max(2, Math.min(this.map.width - 2, tank.position.x + Math.cos(angle) * dist))
+      const newY = Math.max(2, Math.min(this.map.height - 2, tank.position.y + Math.sin(angle) * dist))
+
+      if (this.physics.isPositionFree({ x: newX, y: newY }, tank.tankRadius)) {
+        tank.position = { x: newX, y: newY }
+        return
+      }
+    }
+  }
+
   private startGame(): void {
     this.phase = GamePhase.Playing
     this.startTime = Date.now()
     this.now = this.startTime
 
     const mapInfo = MAP_INFO.find(m => m.id === this.mapId)
-    const botCount = mapInfo?.botCount ?? 0
 
     // Add boss on Village map instead of regular bots
     if (this.mapId === 'village') {
@@ -174,25 +218,41 @@ export class GameRoom {
       } catch (e) {
         // ignore if no space
       }
+    } else if (this.mapId === 'ctf') {
+      // CTF: use player-specified bot counts or defaults
+      const botsA = this.ctfSettings?.botsA ?? 3
+      const botsB = this.ctfSettings?.botsB ?? 3
+
+      // Spawn Team A bots
+      for (let i = 0; i < botsA; i++) {
+        const botId = `bot_a_${i}`
+        this.playerManager.addPlayer(botId, `Bot A${i + 1}`, true)
+        const bot = this.playerManager.getTank(botId)
+        if (bot) {
+          bot.team = 'a'
+          bot.color = '#4488FF'
+        }
+        try { this.indexMap.assign(botId) } catch (e) {}
+      }
+
+      // Spawn Team B bots
+      for (let i = 0; i < botsB; i++) {
+        const botId = `bot_b_${i}`
+        this.playerManager.addPlayer(botId, `Bot B${i + 1}`, true)
+        const bot = this.playerManager.getTank(botId)
+        if (bot) {
+          bot.team = 'b'
+          bot.color = '#FF4444'
+        }
+        try { this.indexMap.assign(botId) } catch (e) {}
+      }
     } else {
       // Add regular bots on other maps
+      const botCount = mapInfo?.botCount ?? 0
       for (let i = 0; i < botCount; i++) {
         const botId = `bot_${i}`
         this.playerManager.addPlayer(botId, `Bot ${i + 1}`, true)
-        // Assign CTF teams to bots (alternate)
-        if (this.mapId === 'ctf') {
-          const bot = this.playerManager.getTank(botId)
-          if (bot) {
-            bot.team = i % 2 === 0 ? 'a' : 'b'
-            bot.color = bot.team === 'a' ? '#4488FF' : '#FF4444'
-          }
-        }
-        // Register bot in IndexMap so metadata is sent to clients
-        try {
-          this.indexMap.assign(botId)
-        } catch (e) {
-          // ignore if no space
-        }
+        try { this.indexMap.assign(botId) } catch (e) {}
       }
     }
 
@@ -222,19 +282,46 @@ export class GameRoom {
 
     // 1b. Bot AI movement
     const allTanks = this.playerManager.getAllTanks()
+    // Prepare CTF info for bots if in CTF mode
+    const ctfInfo = this.ctfManager ? (() => {
+      const s = this.ctfManager!.getState()
+      return { flagA: s.flagA, flagB: s.flagB, flagACarrier: s.flagACarrier, flagBCarrier: s.flagBCarrier, baseA: s.baseA, baseB: s.baseB }
+    })() : undefined
+
     const botMoves = this.botController.update(
       allTanks,
       this.starManager.getStars(),
       this.powerUpManager.getPowerUps(),
       this.portalManager.getPortals(),
       this.zoneManager.getZone(),
-      this.now
+      this.now,
+      ctfInfo
     )
     for (const [botId, move] of botMoves) {
       const bot = this.playerManager.getTank(botId)
       if (bot) {
         this.physics.moveTank(bot, move.moveAngle, allTanks, this.now)
         bot.turretAngle = move.aimAngle
+      }
+    }
+
+    // 1c. Bot anti-stuck: teleport bots that haven't moved
+    for (const tank of allTanks) {
+      if (!tank.isBot || !tank.isAlive) continue
+      const prev = this.botPositions.get(tank.id)
+      if (prev) {
+        const dx = tank.position.x - prev.x
+        const dy = tank.position.y - prev.y
+        if (dx * dx + dy * dy < 0.1) {
+          if (this.now - prev.since > 2000) {
+            this.teleportNearby(tank)
+            this.botPositions.set(tank.id, { x: tank.position.x, y: tank.position.y, since: this.now })
+          }
+        } else {
+          this.botPositions.set(tank.id, { x: tank.position.x, y: tank.position.y, since: this.now })
+        }
+      } else {
+        this.botPositions.set(tank.id, { x: tank.position.x, y: tank.position.y, since: this.now })
       }
     }
 
@@ -404,9 +491,14 @@ export class GameRoom {
 
     for (const target of allTanks) {
       if (!target.isAlive || target.id === bot.id) continue
-      if (target.isBot && bot.isBot) continue
-      // Don't shoot teammates in CTF
-      if (bot.team && target.team === bot.team) continue
+      // In CTF: bots fight enemy team (bots AND players)
+      if (bot.team && target.team) {
+        if (target.team === bot.team) continue // don't shoot teammates
+        // Allow shooting enemy team bots
+      } else {
+        // Non-CTF: bots don't shoot each other
+        if (target.isBot && bot.isBot) continue
+      }
 
       const dx = target.position.x - bot.position.x
       const dy = target.position.y - bot.position.y
