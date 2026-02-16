@@ -304,6 +304,8 @@ export class GameRoom {
     // Invalidate tank cache once at the start of tick
     this.playerManager.invalidateCache()
 
+    let _t = performance.now()
+
     // 1. Process player inputs (use latest input only to prevent lag)
     for (const tank of this.playerManager.getAllTanks()) {
       if (tank.isBot) continue
@@ -316,10 +318,12 @@ export class GameRoom {
         tank.turretAngle = input.aimAngle
         // Fire if player requested
         if (input.fire) {
-          this.bulletManager.tryFire(tank, this.now)
+          const b = this.bulletManager.tryFire(tank, this.now)
+          if (b) serverStats.onShot()
         }
       }
     }
+    serverStats.recordSection('input', performance.now() - _t); _t = performance.now()
 
     // 1b. Bot AI movement
     const allTanks = this.playerManager.getAllTanks()
@@ -366,13 +370,16 @@ export class GameRoom {
       }
     }
 
+    serverStats.recordSection('botAI', performance.now() - _t); _t = performance.now()
+
     // 2. Bot firing (fire when turret is aimed at a target)
     for (const tank of this.playerManager.getAliveTanks()) {
       if (!tank.isBot) continue
       // Boss fires through special attacks, not regular firing
       if (tank.id === 'boss_1') continue
       if (this.shouldBotFire(tank, allTanks)) {
-        this.bulletManager.tryFire(tank, this.now)
+        const b = this.bulletManager.tryFire(tank, this.now)
+        if (b) serverStats.onShot()
       }
     }
 
@@ -429,10 +436,13 @@ export class GameRoom {
       }
     }
 
+    serverStats.recordSection('botFire', performance.now() - _t); _t = performance.now()
+
     // 3. Update bullets and check hits
     const hits = this.bulletManager.update(this.playerManager.getAllTanks())
 
     for (const hit of hits) {
+      serverStats.onHit()
       if (hit.type === 'tank') {
         const damage = hit.bullet.isRocket ? 2 : 1
         const killed = this.playerManager.damageTank(hit.targetId, damage, this.now)
@@ -441,6 +451,7 @@ export class GameRoom {
           const killer = this.playerManager.getTank(hit.bullet.ownerId)
           const droppedStars = this.playerManager.killTank(hit.targetId, hit.bullet.ownerId)
 
+          serverStats.onKill()
           if (dead && killer) {
             this.events.onKill(dead.id, dead.name, killer.id, killer.name)
           }
@@ -463,6 +474,7 @@ export class GameRoom {
             const targetId = hit.targetId
             // Bosses do not respawn
             if (targetId !== 'boss_1' && targetId !== 'ctf_boss') {
+              serverStats.onRespawn()
               const respawnDelay = dead.isBot ? 5000 : 3000
               setTimeout(() => {
                 this.respawnWithTeam(targetId)
@@ -473,13 +485,19 @@ export class GameRoom {
       }
     }
 
+    serverStats.recordSection('bullets', performance.now() - _t); _t = performance.now()
+
     // 3b. CTF flag logic
     if (this.ctfManager) {
       this.ctfManager.update(this.playerManager.getAliveTanks())
     }
 
+    serverStats.recordSection('ctf', performance.now() - _t); _t = performance.now()
+
     // 4. Update stars
     this.starManager.update(this.playerManager.getAliveTanks(), this.now)
+
+    serverStats.recordSection('stars', performance.now() - _t); _t = performance.now()
 
     // 5. Update power-ups
     this.powerUpManager.update(
@@ -489,6 +507,8 @@ export class GameRoom {
     )
     this.playerManager.updatePowerUps(this.now)
     this.playerManager.updateAutoRegen(this.now)
+
+    serverStats.recordSection('powerups', performance.now() - _t); _t = performance.now()
 
     // 6. Zone shrinking + damage
     this.zoneManager.update(this.playerManager.getAliveTanks(), elapsed, this.now)
@@ -501,6 +521,8 @@ export class GameRoom {
       }
     }
 
+    serverStats.recordSection('zone', performance.now() - _t); _t = performance.now()
+
     // 7. Portals
     this.portalManager.update(
       this.now,
@@ -512,6 +534,8 @@ export class GameRoom {
       this.events.onPortalExit(tank.id, tank.name, tank.stars)
       tank.isAlive = false
     }
+
+    serverStats.recordSection('portals', performance.now() - _t); _t = performance.now()
 
     // 8. Check game over
     if (this.zoneManager.isFullyShrunk() || this.playerManager.aliveCount === 0) {
@@ -553,10 +577,11 @@ export class GameRoom {
 
     // 10. Broadcast state (send at 10Hz — every 2nd tick)
     if (tickNum % 2 === 0) {
+      const bcastStart = performance.now()
       const state = this.buildGameState(tickNum, elapsed)
       this.events.onStateUpdate(state, this)
+      serverStats.recordSection('broadcast', performance.now() - bcastStart)
 
-      // Update stats
       serverStats.updateEntities(
         state.tanks.length,
         state.bullets.length,
