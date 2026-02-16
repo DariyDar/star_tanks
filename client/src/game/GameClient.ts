@@ -157,8 +157,8 @@ export class GameClient {
           // Teleport: large desync (portal, respawn)
           this.predictedPos = { ...myTank.position }
         } else if (dist > 0.05) {
-          // Adaptive blend: stronger correction when further from server
-          const blendFactor = dist > 2 ? 0.5 : dist > 0.5 ? 0.3 : 0.15
+          // Aggressive blend for responsive feel
+          const blendFactor = dist > 2 ? 0.7 : dist > 0.5 ? 0.5 : 0.35
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor
         }

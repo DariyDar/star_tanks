@@ -575,8 +575,8 @@ export class GameRoom {
       this.phase = GamePhase.Shrinking
     }
 
-    // 10. Broadcast state (send at 10Hz — every 2nd tick)
-    if (tickNum % 2 === 0) {
+    // 10. Broadcast state (20Hz — every tick)
+    {
       const bcastStart = performance.now()
       const state = this.buildGameState(tickNum, elapsed)
       this.events.onStateUpdate(state, this)

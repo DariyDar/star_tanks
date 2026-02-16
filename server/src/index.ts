@@ -2,12 +2,19 @@ import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { config } from './config.js'
 import { SocketHandler } from './network/SocketHandler.js'
 import { serverStats } from './stats/ServerStats.js'
 
 const app = express()
 app.use(cors({ origin: config.corsOrigin }))
+
+// Serve client static files from ../client/dist
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const clientDist = path.resolve(__dirname, '../../client/dist')
+app.use(express.static(clientDist))
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() })
