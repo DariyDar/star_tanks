@@ -38,8 +38,8 @@ export const BULLET_SPEED = 10
 export const BULLET_RANGE = 15
 
 // Stars
-export const STARS_PER_MAP = 30
-export const STAR_RESPAWN_TIME = 30000
+export const STARS_PER_MAP = 15
+export const STAR_RESPAWN_TIME = 60000
 
 // Power-ups
 export const POWERUP_SPAWN_INTERVAL = 10000  // Spawn every 10 seconds (was 20)
