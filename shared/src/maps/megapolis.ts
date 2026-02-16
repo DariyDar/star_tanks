@@ -62,7 +62,7 @@ export function generateMegapolisMap(): MapDefinition {
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
 
       } else if (buildingType < 0.6) {
-        // Steel bunker
+        // Brick bunker (breakable)
         const w = rngInt(rng, 2, 4)
         const h = rngInt(rng, 2, 4)
         const ox = startX + rngInt(rng, 1, Math.max(2, blockSize - w - 1))
@@ -70,7 +70,7 @@ export function generateMegapolisMap(): MapDefinition {
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
-            addObstacle(ox + dx, oy + dy, ObstacleType.Steel)
+            addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
           }
         }
 
@@ -97,9 +97,7 @@ export function generateMegapolisMap(): MapDefinition {
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
             const isEdge = dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
-            const isCorner = (dx < 1 || dx >= w - 1) && (dy < 1 || dy >= h - 1)
-            if (isCorner) addObstacle(ox + dx, oy + dy, ObstacleType.Steel)
-            else if (isEdge) addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
+            if (isEdge) addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
           }
         }
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
@@ -123,12 +121,11 @@ export function generateMegapolisMap(): MapDefinition {
     }
   }
 
-  // Small water features (fountains/ponds) instead of continuous channel
-  for (let i = 0; i < 5; i++) {
+  // Small water features (tiny fountains - never enclosing)
+  for (let i = 0; i < 6; i++) {
     const cx = rngInt(rng, 20, MAP_WIDTH - 20)
     const cy = rngInt(rng, 20, MAP_HEIGHT - 20)
-    const r = rngInt(rng, 2, 4)
-
+    const r = rngInt(rng, 1, 2) // Very small
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (dx * dx + dy * dy <= r * r) {

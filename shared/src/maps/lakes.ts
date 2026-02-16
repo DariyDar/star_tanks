@@ -18,54 +18,58 @@ export function generateLakesMap(): MapDefinition {
     obstacles.push({ x, y, type, hp: type === ObstacleType.Brick ? BRICK_HP : 9999 })
   }
 
-  // 3 medium lakes (water ellipses)
+  // 3 lakes (crescent/half-moon shapes - never fully enclosing)
   for (let i = 0; i < 3; i++) {
     const cx = rngInt(rng, 30, MAP_WIDTH - 30)
     const cy = rngInt(rng, 30, MAP_HEIGHT - 30)
-    const rx = rngInt(rng, 5, 10)
-    const ry = rngInt(rng, 4, 8)
+    const rx = rngInt(rng, 4, 7)
+    const ry = rngInt(rng, 3, 6)
+    const openSide = rngInt(rng, 0, 3) // 0=top, 1=bottom, 2=left, 3=right
 
     for (let dy = -ry; dy <= ry; dy++) {
       for (let dx = -rx; dx <= rx; dx++) {
         const nx = (dx / rx) * (dx / rx) + (dy / ry) * (dy / ry)
-        if (nx <= 1.0) {
-          addObstacle(cx + dx, cy + dy, ObstacleType.Water)
-        }
+        if (nx > 1.0) continue
+        // Leave one side open so water never encloses
+        if (openSide === 0 && dy < -ry / 2) continue
+        if (openSide === 1 && dy > ry / 2) continue
+        if (openSide === 2 && dx < -rx / 2) continue
+        if (openSide === 3 && dx > rx / 2) continue
+        addObstacle(cx + dx, cy + dy, ObstacleType.Water)
       }
     }
 
-    // Bush ring around lake
+    // Bush ring around lake (sparse)
     for (let dy = -ry - 2; dy <= ry + 2; dy++) {
       for (let dx = -rx - 2; dx <= rx + 2; dx++) {
         const nx = (dx / rx) * (dx / rx) + (dy / ry) * (dy / ry)
-        if (nx > 1.0 && nx <= 1.5 && rng() < 0.4) {
+        if (nx > 1.0 && nx <= 1.5 && rng() < 0.35) {
           addObstacle(cx + dx, cy + dy, ObstacleType.Bush)
         }
       }
     }
   }
 
-  // 5 small ponds
-  for (let i = 0; i < 5; i++) {
+  // 8 small ponds (tiny, not enclosing)
+  for (let i = 0; i < 8; i++) {
     const cx = rngInt(rng, 15, MAP_WIDTH - 15)
     const cy = rngInt(rng, 15, MAP_HEIGHT - 15)
-    const r = rngInt(rng, 2, 4)
-
+    const r = rngInt(rng, 1, 2)
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy <= r * r) {
+        if (dx * dx + dy * dy <= r * r && rng() < 0.8) {
           addObstacle(cx + dx, cy + dy, ObstacleType.Water)
         }
       }
     }
   }
 
-  // Brick walls (scattered) - massive increase for maze-like gameplay
-  for (let i = 0; i < 100; i++) {
+  // Brick walls (scattered) - dense breakable maze
+  for (let i = 0; i < 150; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 3, 8)  // Longer walls
+    const len = rngInt(rng, 3, 8)
 
     for (let j = 0; j < len; j++) {
       if (horizontal) addObstacle(x + j, y, ObstacleType.Brick)
@@ -73,15 +77,15 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Steel boulders - increased for permanent cover
-  for (let i = 0; i < 40; i++) {
+  // Brick boulders (breakable cover)
+  for (let i = 0; i < 30; i++) {
     const cx = rngInt(rng, 10, MAP_WIDTH - 10)
     const cy = rngInt(rng, 10, MAP_HEIGHT - 10)
-    const size = rngInt(rng, 2, 4)  // Bigger steel obstacles
+    const size = rngInt(rng, 2, 3)
 
     for (let dy = 0; dy < size; dy++) {
       for (let dx = 0; dx < size; dx++) {
-        addObstacle(cx + dx, cy + dy, ObstacleType.Steel)
+        addObstacle(cx + dx, cy + dy, ObstacleType.Brick)
       }
     }
   }

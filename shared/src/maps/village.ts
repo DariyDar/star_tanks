@@ -18,34 +18,29 @@ export function generateVillageMap(): MapDefinition {
     obstacles.push({ x, y, type, hp: type === ObstacleType.Brick ? BRICK_HP : 9999 })
   }
 
-  // Scattered ponds and small creeks (no continuous river)
-  for (let i = 0; i < 8; i++) {
+  // Small ponds (tiny, never enclosing)
+  for (let i = 0; i < 10; i++) {
     const cx = rngInt(rng, 20, MAP_WIDTH - 20)
     const cy = rngInt(rng, 20, MAP_HEIGHT - 20)
-    const r = rngInt(rng, 2, 5)
-
+    const r = rngInt(rng, 1, 2)
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy <= r * r) {
+        if (dx * dx + dy * dy <= r * r && rng() < 0.7) {
           addObstacle(cx + dx, cy + dy, ObstacleType.Water)
         }
       }
     }
   }
 
-  // Small creek segments (short, not continuous)
-  for (let i = 0; i < 5; i++) {
+  // Short creek lines (1 tile wide, always passable around)
+  for (let i = 0; i < 6; i++) {
     const startX = rngInt(rng, 20, MAP_WIDTH - 20)
     const startY = rngInt(rng, 20, MAP_HEIGHT - 20)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 5, 15)  // Short segments only
-    const width = rngInt(rng, 1, 2)
-
+    const len = rngInt(rng, 4, 10)
     for (let j = 0; j < len; j++) {
-      for (let w = 0; w <= width; w++) {
-        if (horizontal) addObstacle(startX + j, startY + w, ObstacleType.Water)
-        else addObstacle(startX + w, startY + j, ObstacleType.Water)
-      }
+      if (horizontal) addObstacle(startX + j, startY, ObstacleType.Water)
+      else addObstacle(startX, startY + j, ObstacleType.Water)
     }
   }
 
@@ -95,8 +90,8 @@ export function generateVillageMap(): MapDefinition {
       }
     }
 
-    // Stone walls (steel)
-    const wallCount = rngInt(rng, 1, 2)
+    // Stone walls (brick - breakable)
+    const wallCount = rngInt(rng, 2, 4)
     for (let w = 0; w < wallCount; w++) {
       const wx = center.x + rngInt(rng, -15, 15)
       const wy = center.y + rngInt(rng, -15, 15)
@@ -104,8 +99,8 @@ export function generateVillageMap(): MapDefinition {
       const len = rngInt(rng, 3, 8)
 
       for (let j = 0; j < len; j++) {
-        if (horizontal) addObstacle(wx + j, wy, ObstacleType.Steel)
-        else addObstacle(wx, wy + j, ObstacleType.Steel)
+        if (horizontal) addObstacle(wx + j, wy, ObstacleType.Brick)
+        else addObstacle(wx, wy + j, ObstacleType.Brick)
       }
     }
   }
@@ -142,12 +137,12 @@ export function generateVillageMap(): MapDefinition {
     }
   }
 
-  // Scattered brick walls - massive increase for maze gameplay
-  for (let i = 0; i < 60; i++) {
+  // Scattered brick walls - dense breakable maze
+  for (let i = 0; i < 120; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
-    const len = rngInt(rng, 4, 8)  // Longer walls
+    const len = rngInt(rng, 3, 8)
 
     for (let j = 0; j < len; j++) {
       if (horizontal) addObstacle(x + j, y, ObstacleType.Brick)

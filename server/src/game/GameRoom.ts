@@ -62,7 +62,9 @@ export class GameRoom {
     this.bulletManager = new BulletManager(this.grid, this.map.width, this.map.height)
     this.playerManager = new PlayerManager(this.map.spawnPoints)
     this.starManager = new StarManager([]) // Stars come from bots, not map
+    this.starManager.setGrid(this.grid, this.map.width, this.map.height)
     this.powerUpManager = new PowerUpManager(this.map.width, this.map.height)
+    this.powerUpManager.setGrid(this.grid)
     this.zoneManager = new ZoneManager(this.map.width, this.map.height)
     this.portalManager = new PortalManager(this.grid, this.map.width, this.map.height)
     this.botController = new BotController(this.grid, this.map.width, this.map.height)
@@ -262,11 +264,19 @@ export class GameRoom {
             this.starManager.dropStarsAtPosition(dead.position, droppedStars)
           }
 
+          // Boss drops 30 bonus stars on death
+          if (dead && hit.targetId === 'boss_1') {
+            this.starManager.dropStarsAtPosition(dead.position, 30)
+          }
+
           if (dead && this.phase !== GamePhase.GameOver) {
             const targetId = hit.targetId
-            setTimeout(() => {
-              this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
-            }, 3000)
+            // Boss does not respawn
+            if (targetId !== 'boss_1') {
+              setTimeout(() => {
+                this.playerManager.respawnTank(targetId, (x, y) => this.zoneManager.isPositionInSafeZone(x, y))
+              }, 3000)
+            }
           }
         }
       }

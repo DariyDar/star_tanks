@@ -37,7 +37,7 @@ export class PlayerManager {
     if (isBoss) {
       initialMaxHp = 100  // Boss has 100 HP
       tankRadius = 1.35   // Boss is 3x larger (FIXED - doesn't grow with stars)
-      speed = TANK_SPEED * 0.8  // 20% slower than player
+      speed = TANK_SPEED * 0.6  // 40% slower than player
       tankColor = '#8B0000'  // Dark red for boss
     }
 

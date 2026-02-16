@@ -93,7 +93,7 @@ export class LobbyScreen {
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
       background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 40%, #0d1b2a 100%);
       color: white; font-family: 'Segoe UI', Arial, sans-serif; z-index: 10;
-      overflow-y: auto; padding: 20px 0;
+      overflow-y: auto; padding: 30px 0;
     `
 
     // Animated background particles (CSS only)
@@ -119,24 +119,24 @@ export class LobbyScreen {
     const wrapper = document.createElement('div')
     wrapper.style.cssText = `
       position: relative; z-index: 1; display: flex; flex-direction: column;
-      align-items: center; max-width: 600px; width: 95%;
+      align-items: center; max-width: 800px; width: 95%;
     `
 
     // Title with glow
     const title = document.createElement('h1')
     title.textContent = 'TANK BATTLE ROYALE'
     title.style.cssText = `
-      color: #FFD700; font-size: clamp(1.3em, 4vw, 2.2em); margin: 0 0 4px 0;
+      color: #FFD700; font-size: clamp(2em, 5vw, 3.2em); margin: 0 0 8px 0;
       text-shadow: 0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(255,215,0,0.2);
-      letter-spacing: 3px; font-weight: 900;
+      letter-spacing: 4px; font-weight: 900;
     `
     wrapper.appendChild(title)
 
     const subtitle = document.createElement('div')
     subtitle.textContent = 'COLLECT STARS. SURVIVE. EXTRACT.'
     subtitle.style.cssText = `
-      font-size: 10px; color: rgba(255,215,0,0.6); letter-spacing: 4px;
-      margin-bottom: 12px; font-weight: 600;
+      font-size: 14px; color: rgba(255,215,0,0.6); letter-spacing: 5px;
+      margin-bottom: 18px; font-weight: 600;
     `
     wrapper.appendChild(subtitle)
 
@@ -145,18 +145,18 @@ export class LobbyScreen {
     const displayStars = this.accountStars !== null ? this.accountStars : 50
     starsCard.style.cssText = `
       background: linear-gradient(135deg, rgba(255,215,0,0.15) 0%, rgba(255,180,0,0.05) 100%);
-      border: 1px solid rgba(255,215,0,0.3); border-radius: 12px;
-      padding: 8px 24px; margin-bottom: 4px; text-align: center;
+      border: 1px solid rgba(255,215,0,0.3); border-radius: 14px;
+      padding: 14px 36px; margin-bottom: 8px; text-align: center;
     `
     starsCard.innerHTML = `
-      <div style="font-size: 22px; color: #FFD700; font-weight: bold; text-shadow: 0 0 10px rgba(255,215,0,0.3);">★ ${displayStars}</div>
-      <div style="font-size: 10px; color: rgba(255,215,0,0.5); margin-top: 1px;">YOUR STARS</div>
+      <div style="font-size: 32px; color: #FFD700; font-weight: bold; text-shadow: 0 0 10px rgba(255,215,0,0.3);">★ ${displayStars}</div>
+      <div style="font-size: 13px; color: rgba(255,215,0,0.5); margin-top: 3px; letter-spacing: 2px;">YOUR STARS</div>
     `
     wrapper.appendChild(starsCard)
 
     const entryCost = document.createElement('div')
     entryCost.textContent = 'Entry: 2 ★'
-    entryCost.style.cssText = 'font-size: 11px; color: rgba(170,170,170,0.7); margin-bottom: 10px;'
+    entryCost.style.cssText = 'font-size: 14px; color: rgba(170,170,170,0.7); margin-bottom: 16px;'
     wrapper.appendChild(entryCost)
 
     // Error message
@@ -179,9 +179,9 @@ export class LobbyScreen {
     this.nameInput.maxLength = 15
     this.nameInput.value = this.playerName || ''
     this.nameInput.style.cssText = `
-      padding: 10px 18px; font-size: 15px; border: 2px solid rgba(255,215,0,0.4);
-      background: rgba(255,255,255,0.07); color: white; border-radius: 10px;
-      width: 240px; text-align: center; margin-bottom: 14px; outline: none;
+      padding: 14px 22px; font-size: 18px; border: 2px solid rgba(255,215,0,0.4);
+      background: rgba(255,255,255,0.07); color: white; border-radius: 12px;
+      width: 320px; text-align: center; margin-bottom: 20px; outline: none;
       font-family: 'Segoe UI', Arial, sans-serif; transition: border-color 0.3s, box-shadow 0.3s;
     `
     this.nameInput.addEventListener('focus', () => {
@@ -197,45 +197,45 @@ export class LobbyScreen {
     // Tank customization section (color pickers + preview)
     const customSection = document.createElement('div')
     customSection.style.cssText = `
-      width: 100%; margin-bottom: 14px;
-      display: flex; gap: 16px; align-items: flex-start; justify-content: center;
+      width: 100%; margin-bottom: 20px;
+      display: flex; gap: 24px; align-items: flex-start; justify-content: center;
       flex-wrap: wrap;
     `
 
     // Left: 4 color picker rows
     const colorPickers = document.createElement('div')
-    colorPickers.style.cssText = 'display: flex; flex-direction: column; gap: 6px;'
+    colorPickers.style.cssText = 'display: flex; flex-direction: column; gap: 10px;'
 
     const colorSectionTitle = document.createElement('div')
     colorSectionTitle.textContent = 'CUSTOMIZE TANK'
     colorSectionTitle.style.cssText = `
-      font-size: 11px; letter-spacing: 2px; color: rgba(170,170,170,0.7);
-      margin-bottom: 4px; text-align: center;
+      font-size: 14px; letter-spacing: 3px; color: rgba(170,170,170,0.7);
+      margin-bottom: 6px; text-align: center;
     `
     colorPickers.appendChild(colorSectionTitle)
 
     for (let partIdx = 0; partIdx < 4; partIdx++) {
       const row = document.createElement('div')
-      row.style.cssText = 'display: flex; align-items: center; gap: 6px;'
+      row.style.cssText = 'display: flex; align-items: center; gap: 10px;'
 
       const label = document.createElement('div')
       label.textContent = PART_LABELS[partIdx]
       label.style.cssText = `
-        font-size: 11px; color: rgba(200,200,200,0.8); width: 50px;
+        font-size: 14px; color: rgba(200,200,200,0.8); width: 60px;
         text-align: right; flex-shrink: 0;
       `
       row.appendChild(label)
 
       const palette = PART_PALETTES[partIdx]
       const grid = document.createElement('div')
-      grid.style.cssText = 'display: flex; gap: 3px; flex-wrap: wrap;'
+      grid.style.cssText = 'display: flex; gap: 5px; flex-wrap: wrap;'
 
       for (const color of palette) {
         const swatch = document.createElement('div')
         const key = PART_KEYS[partIdx]
         const isSelected = this.tankColors[key] === color
         swatch.style.cssText = `
-          width: 22px; height: 22px; border-radius: 4px; cursor: pointer;
+          width: 28px; height: 28px; border-radius: 5px; cursor: pointer;
           background: ${color};
           border: 2px solid ${isSelected ? '#FFD700' : 'rgba(255,255,255,0.1)'};
           transition: all 0.15s;
@@ -284,15 +284,15 @@ export class LobbyScreen {
     const previewLabel = document.createElement('div')
     previewLabel.textContent = 'PREVIEW'
     previewLabel.style.cssText = `
-      font-size: 10px; letter-spacing: 2px; color: rgba(170,170,170,0.6);
+      font-size: 13px; letter-spacing: 2px; color: rgba(170,170,170,0.6);
     `
     previewWrapper.appendChild(previewLabel)
 
     this.previewCanvas = document.createElement('canvas')
-    this.previewCanvas.width = 120
-    this.previewCanvas.height = 120
+    this.previewCanvas.width = 160
+    this.previewCanvas.height = 160
     this.previewCanvas.style.cssText = `
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
       background: rgba(0,0,0,0.3);
     `
     previewWrapper.appendChild(this.previewCanvas)
@@ -305,35 +305,35 @@ export class LobbyScreen {
 
     // Map selection
     const mapSection = document.createElement('div')
-    mapSection.style.cssText = 'width: 100%; margin-bottom: 16px;'
+    mapSection.style.cssText = 'width: 100%; margin-bottom: 24px;'
 
     const mapTitle = document.createElement('div')
     mapTitle.textContent = 'SELECT MAP'
     mapTitle.style.cssText = `
-      font-size: 11px; letter-spacing: 2px; color: rgba(170,170,170,0.7);
-      margin-bottom: 6px; text-align: center;
+      font-size: 15px; letter-spacing: 3px; color: rgba(170,170,170,0.7);
+      margin-bottom: 10px; text-align: center;
     `
     mapSection.appendChild(mapTitle)
 
     const mapGrid = document.createElement('div')
-    mapGrid.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;'
+    mapGrid.style.cssText = 'display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;'
 
     for (const info of MAP_INFO) {
       const btn = document.createElement('button')
       const isSelected = info.id === this.selectedMap
       btn.style.cssText = `
-        padding: 10px 14px; font-size: 12px;
+        padding: 14px 20px; font-size: 14px;
         border: 2px solid ${isSelected ? 'rgba(255,215,0,0.6)' : 'rgba(255,255,255,0.1)'};
         background: ${isSelected ? 'rgba(255,215,0,0.1)' : 'rgba(255,255,255,0.04)'};
-        color: white; border-radius: 10px; cursor: pointer;
-        min-width: 130px; transition: all 0.2s;
+        color: white; border-radius: 12px; cursor: pointer;
+        min-width: 160px; transition: all 0.2s;
         font-family: 'Segoe UI', Arial, sans-serif;
         box-shadow: ${isSelected ? '0 0 15px rgba(255,215,0,0.15)' : 'none'};
       `
       btn.innerHTML = `
-        <div style="font-weight: 700; font-size: 14px; margin-bottom: 2px;">${info.name}</div>
-        <div style="color: rgba(170,170,170,0.8); font-size: 10px;">${info.description}</div>
-        <div style="color: #FFD700; font-size: 10px; margin-top: 2px; opacity: 0.8;">★ ${info.botCount} bots</div>
+        <div style="font-weight: 700; font-size: 17px; margin-bottom: 4px;">${info.name}</div>
+        <div style="color: rgba(170,170,170,0.8); font-size: 13px;">${info.description}</div>
+        <div style="color: #FFD700; font-size: 12px; margin-top: 4px; opacity: 0.8;">★ ${info.botCount} bots</div>
       `
 
       btn.addEventListener('mouseenter', () => {
@@ -370,10 +370,10 @@ export class LobbyScreen {
     const playBtn = document.createElement('button')
     playBtn.textContent = 'PLAY'
     playBtn.style.cssText = `
-      padding: 14px 70px; font-size: 20px; font-weight: 800;
-      border: none; border-radius: 14px; cursor: pointer;
+      padding: 18px 90px; font-size: 26px; font-weight: 800;
+      border: none; border-radius: 16px; cursor: pointer;
       background: linear-gradient(135deg, #FFD700, #FFA500);
-      color: #1a1a2e; letter-spacing: 3px;
+      color: #1a1a2e; letter-spacing: 4px;
       box-shadow: 0 4px 20px rgba(255,215,0,0.4);
       transition: transform 0.15s, box-shadow 0.15s;
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -416,7 +416,7 @@ export class LobbyScreen {
     const h = this.previewCanvas.height
     const cx = w / 2
     const cy = h / 2
-    const s = 30 // tank scale
+    const s = 40 // tank scale
 
     ctx.clearRect(0, 0, w, h)
 

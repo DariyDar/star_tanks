@@ -4,6 +4,7 @@ import {
   FIRE_COOLDOWN_RAPID, MAX_POWERUPS
 } from '@tank-br/shared/constants.js'
 import { rngInt, createRng } from '@tank-br/shared/math.js'
+import { SpatialGrid, isWalkableCell } from '@tank-br/shared/collision.js'
 
 let powerUpIdCounter = 0
 
@@ -27,11 +28,16 @@ export class PowerUpManager {
   private rng: () => number
   private mapWidth: number
   private mapHeight: number
+  private grid: SpatialGrid | null = null
 
   constructor(mapWidth: number, mapHeight: number) {
     this.rng = createRng(Date.now())
     this.mapWidth = mapWidth
     this.mapHeight = mapHeight
+  }
+
+  setGrid(grid: SpatialGrid): void {
+    this.grid = grid
   }
 
   update(tanks: Tank[], now: number, isPositionSafe?: (x: number, y: number) => boolean): void {
@@ -79,8 +85,10 @@ export class PowerUpManager {
       x = rngInt(this.rng, 100, this.mapWidth - 100)
       y = rngInt(this.rng, 100, this.mapHeight - 100)
 
-      // If no zone check provided, or position is safe, use it
-      if (!isPositionSafe || isPositionSafe(x, y)) {
+      // Check zone safety AND walkable terrain
+      const zoneSafe = !isPositionSafe || isPositionSafe(x, y)
+      const terrainSafe = !this.grid || isWalkableCell(Math.floor(x), Math.floor(y), this.grid, this.mapWidth, this.mapHeight)
+      if (zoneSafe && terrainSafe) {
         foundSafe = true
         break
       }
@@ -125,6 +133,26 @@ export class PowerUpManager {
   }
 
   addPowerUp(powerUp: PowerUp): void {
+    // Ensure powerup doesn't land on impassable terrain
+    if (this.grid) {
+      const cx = Math.floor(powerUp.position.x)
+      const cy = Math.floor(powerUp.position.y)
+      if (!isWalkableCell(cx, cy, this.grid, this.mapWidth, this.mapHeight)) {
+        // Try nearby positions in a spiral
+        for (let r = 1; r <= 3; r++) {
+          for (let dx = -r; dx <= r; dx++) {
+            for (let dy = -r; dy <= r; dy++) {
+              if (isWalkableCell(cx + dx, cy + dy, this.grid, this.mapWidth, this.mapHeight)) {
+                powerUp.position = { x: cx + dx + 0.5, y: cy + dy + 0.5 }
+                this.powerUps.push(powerUp)
+                return
+              }
+            }
+          }
+        }
+        return // Can't find walkable spot, skip this powerup
+      }
+    }
     this.powerUps.push(powerUp)
   }
 
