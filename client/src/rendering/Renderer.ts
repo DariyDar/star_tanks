@@ -22,6 +22,7 @@ export class Renderer {
   readonly effects = new EffectsRenderer()
   private cellPx = 24
   private mapLoaded = false
+  private isMobile = 'ontouchstart' in window
 
   // Track previous bullets to detect impacts
   private prevBulletIds = new Set<string>()
@@ -37,6 +38,7 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')!
+    this.hudRenderer.isMobile = this.isMobile
     this.resize()
     window.addEventListener('resize', () => this.resize())
   }
@@ -44,8 +46,9 @@ export class Renderer {
   private resize(): void {
     this.canvas.width = window.innerWidth
     this.canvas.height = window.innerHeight
-    // Cell size based on shorter dimension so we see VIEWPORT_CELLS in that axis
-    this.cellPx = Math.min(window.innerWidth, window.innerHeight) / VIEWPORT_CELLS
+    // On mobile show fewer cells (zoom in) so everything is bigger
+    const cells = this.isMobile ? Math.min(VIEWPORT_CELLS, 18) : VIEWPORT_CELLS
+    this.cellPx = Math.min(window.innerWidth, window.innerHeight) / cells
   }
 
   setCustomTankColors(colors: TankColors | null): void {
@@ -722,5 +725,12 @@ export class Renderer {
   setStuckHint(isStuck: boolean, cooldownMs: number): void {
     this.hudRenderer.showStuckHint = isStuck
     this.hudRenderer.unstickCooldownMs = cooldownMs
+  }
+
+  /** Check if a screen tap hits the stuck button */
+  hitTestStuckButton(x: number, y: number): boolean {
+    const r = this.hudRenderer.stuckButtonRect
+    if (!r) return false
+    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
   }
 }

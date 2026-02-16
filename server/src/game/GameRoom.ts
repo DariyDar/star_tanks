@@ -412,9 +412,10 @@ export class GameRoom {
 
             if (dead && this.phase !== GamePhase.GameOver) {
               const targetId = damageEvent.tankId
+              const respawnDelay = dead.isBot ? 5000 : 3000
               setTimeout(() => {
                 this.respawnWithTeam(targetId)
-              }, 3000)
+              }, respawnDelay)
             }
           }
         }
@@ -455,9 +456,10 @@ export class GameRoom {
             const targetId = hit.targetId
             // Bosses do not respawn
             if (targetId !== 'boss_1' && targetId !== 'ctf_boss') {
+              const respawnDelay = dead.isBot ? 5000 : 3000
               setTimeout(() => {
                 this.respawnWithTeam(targetId)
-              }, 3000)
+              }, respawnDelay)
             }
           }
         }

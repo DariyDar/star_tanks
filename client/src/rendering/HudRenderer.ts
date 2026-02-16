@@ -4,20 +4,27 @@ export class HudRenderer {
   shopOpen = false
   showStuckHint = false
   unstickCooldownMs = 0
+  isMobile = false
+  /** Last rendered stuck button rect for hit-testing */
+  stuckButtonRect: { x: number; y: number; w: number; h: number } | null = null
+
+  /** Scale factor for HUD elements on mobile */
+  private get s(): number { return this.isMobile ? 1.4 : 1 }
 
   render(ctx: CanvasRenderingContext2D, state: GameState, myTank: Tank | undefined): void {
     const w = ctx.canvas.width
     const h = ctx.canvas.height
-    const pad = 12
+    const s = this.s
+    const pad = Math.round(12 * s)
 
     if (myTank) {
       this.renderStarCounter(ctx, pad, pad, myTank)
-      this.renderHpBar(ctx, pad, pad + 48, myTank)
-      this.renderKillsCounter(ctx, pad, pad + 80, myTank)
+      this.renderHpBar(ctx, pad, pad + Math.round(48 * s), myTank)
+      this.renderKillsCounter(ctx, pad, pad + Math.round(80 * s), myTank)
 
       // Power-up indicator with timer
       if (myTank.activePowerUp) {
-        this.renderPowerUpIndicator(ctx, pad, pad + 108, myTank, state.timestamp)
+        this.renderPowerUpIndicator(ctx, pad, pad + Math.round(108 * s), myTank, state.timestamp)
       }
     }
 
@@ -45,6 +52,8 @@ export class HudRenderer {
     // Stuck hint
     if (this.showStuckHint && myTank?.isAlive) {
       this.renderStuckHint(ctx, w, h)
+    } else {
+      this.stuckButtonRect = null
     }
 
     // Shop overlay
@@ -54,8 +63,9 @@ export class HudRenderer {
   }
 
   private renderStarCounter(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank): void {
-    const panelW = 140
-    const panelH = 38
+    const s = this.s
+    const panelW = Math.round(140 * s)
+    const panelH = Math.round(38 * s)
 
     // Panel background with gradient
     const grad = ctx.createLinearGradient(x, y, x + panelW, y)
@@ -72,25 +82,26 @@ export class HudRenderer {
     ctx.stroke()
 
     // Star icon (5-pointed star)
-    const starX = x + 22
+    const starX = x + Math.round(22 * s)
     const starY = y + panelH / 2
-    const starR = 10
+    const starR = Math.round(10 * s)
     this.drawStarShape(ctx, starX, starY, starR)
 
     // Star count text
     ctx.fillStyle = '#FFD700'
-    ctx.font = 'bold 20px Arial'
+    ctx.font = `bold ${Math.round(20 * s)}px Arial`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     ctx.shadowColor = 'rgba(255, 215, 0, 0.5)'
     ctx.shadowBlur = 6
-    ctx.fillText(`${tank.stars}`, x + 38, y + panelH / 2)
+    ctx.fillText(`${tank.stars}`, x + Math.round(38 * s), y + panelH / 2)
     ctx.shadowBlur = 0
   }
 
   private renderHpBar(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank): void {
-    const barW = 140
-    const barH = 22
+    const s = this.s
+    const barW = Math.round(140 * s)
+    const barH = Math.round(22 * s)
 
     // Background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
@@ -121,7 +132,7 @@ export class HudRenderer {
 
     // HP text
     ctx.fillStyle = '#FFF'
-    ctx.font = 'bold 12px Arial'
+    ctx.font = `bold ${Math.round(12 * s)}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(`${tank.hp} / ${tank.maxHp}`, x + barW / 2, y + barH / 2)
@@ -134,16 +145,16 @@ export class HudRenderer {
   }
 
   private renderKillsCounter(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank): void {
+    const s = this.s
     ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
-    this.roundRect(ctx, x, y, 140, 22, 4)
+    this.roundRect(ctx, x, y, Math.round(140 * s), Math.round(22 * s), 4)
     ctx.fill()
 
-    // Skull emoji equivalent (crosshair icon)
     ctx.fillStyle = '#FF6666'
-    ctx.font = 'bold 13px Arial'
+    ctx.font = `bold ${Math.round(13 * s)}px Arial`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText(`Kills: ${tank.kills}`, x + 10, y + 11)
+    ctx.fillText(`Kills: ${tank.kills}`, x + Math.round(10 * s), y + Math.round(11 * s))
   }
 
   private renderPowerUpIndicator(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank, timestamp: number): void {
@@ -165,9 +176,10 @@ export class HudRenderer {
       opticalSight: 'Laser Sight',
       rocket: 'Rockets'
     }
+    const s = this.s
     const color = powerUpColors[tank.activePowerUp!] ?? '#FFF'
-    const panelW = 160
-    const panelH = 32
+    const panelW = Math.round(160 * s)
+    const panelH = Math.round(32 * s)
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
     this.roundRect(ctx, x, y, panelW, panelH, 6)
@@ -176,15 +188,15 @@ export class HudRenderer {
     // Colored indicator dot
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.arc(x + 14, y + panelH / 2, 6, 0, Math.PI * 2)
+    ctx.arc(x + Math.round(14 * s), y + panelH / 2, Math.round(6 * s), 0, Math.PI * 2)
     ctx.fill()
 
     // Power-up name
     ctx.fillStyle = color
-    ctx.font = 'bold 12px Arial'
+    ctx.font = `bold ${Math.round(12 * s)}px Arial`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText(powerUpNames[tank.activePowerUp!] ?? tank.activePowerUp, x + 26, y + panelH / 2)
+    ctx.fillText(powerUpNames[tank.activePowerUp!] ?? tank.activePowerUp, x + Math.round(26 * s), y + panelH / 2)
 
     // Timer countdown
     if (tank.powerUpEndTime > 0) {
@@ -192,16 +204,16 @@ export class HudRenderer {
       const remainingStr = remaining.toFixed(1) + 's'
 
       ctx.fillStyle = '#FFF'
-      ctx.font = 'bold 11px Arial'
+      ctx.font = `bold ${Math.round(11 * s)}px Arial`
       ctx.textAlign = 'right'
-      ctx.fillText(remainingStr, x + panelW - 8, y + panelH / 2)
+      ctx.fillText(remainingStr, x + panelW - Math.round(8 * s), y + panelH / 2)
 
       // Progress bar below text
       const barX = x + 4
-      const barY = y + panelH - 5
+      const barY = y + panelH - Math.round(5 * s)
       const barW = panelW - 8
-      const barH = 3
-      const totalDuration = 10000 // POWERUP_DURATION from constants
+      const barH = Math.round(3 * s)
+      const totalDuration = 10000
       const ratio = Math.min(1, Math.max(0, (tank.powerUpEndTime - timestamp) / totalDuration))
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
@@ -212,8 +224,9 @@ export class HudRenderer {
   }
 
   private renderGameInfo(ctx: CanvasRenderingContext2D, w: number, pad: number, state: GameState): void {
-    const panelW = 140
-    const panelH = 44
+    const s = this.s
+    const panelW = Math.round(140 * s)
+    const panelH = Math.round(44 * s)
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
     this.roundRect(ctx, w - panelW - pad, pad, panelW, panelH, 8)
@@ -225,86 +238,86 @@ export class HudRenderer {
     ctx.stroke()
 
     ctx.fillStyle = '#FFF'
-    ctx.font = 'bold 14px Arial'
+    ctx.font = `bold ${Math.round(14 * s)}px Arial`
     ctx.textAlign = 'right'
     ctx.textBaseline = 'top'
-    ctx.fillText(`Alive: ${state.playersAlive}`, w - pad - 10, pad + 6)
+    ctx.fillText(`Alive: ${state.playersAlive}`, w - pad - Math.round(10 * s), pad + Math.round(6 * s))
 
     const mins = Math.floor(state.timeElapsed / 60000)
     const secs = Math.floor((state.timeElapsed % 60000) / 1000)
     ctx.fillStyle = '#AAA'
-    ctx.font = '13px Arial'
-    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, w - pad - 10, pad + 24)
+    ctx.font = `${Math.round(13 * s)}px Arial`
+    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, w - pad - Math.round(10 * s), pad + Math.round(24 * s))
   }
 
   private renderLeaderboard(ctx: CanvasRenderingContext2D, state: GameState, myId?: string): void {
+    const s = this.s
     const w = ctx.canvas.width
     const top5 = state.leaderboard.slice(0, 5)
-    const panelW = 160
-    const panelH = 24 + top5.length * 18
-    const panelX = w - panelW - 12
-    const panelY = 66
+    const panelW = Math.round(160 * s)
+    const lineH = Math.round(18 * s)
+    const panelH = Math.round(24 * s) + top5.length * lineH
+    const panelX = w - panelW - Math.round(12 * s)
+    const panelY = Math.round(66 * s)
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
     this.roundRect(ctx, panelX, panelY, panelW, panelH, 6)
     ctx.fill()
 
     ctx.fillStyle = '#FFD700'
-    ctx.font = 'bold 11px Arial'
+    ctx.font = `bold ${Math.round(11 * s)}px Arial`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillText('LEADERBOARD', panelX + 10, panelY + 5)
+    ctx.fillText('LEADERBOARD', panelX + Math.round(10 * s), panelY + Math.round(5 * s))
 
-    ctx.font = '11px Arial'
+    ctx.font = `${Math.round(11 * s)}px Arial`
     for (let i = 0; i < top5.length; i++) {
       const entry = top5[i]
-      const y = panelY + 22 + i * 18
+      const y = panelY + Math.round(22 * s) + i * lineH
       const isMe = entry.id === myId
 
       if (isMe) {
         ctx.fillStyle = 'rgba(255, 215, 0, 0.15)'
-        ctx.fillRect(panelX + 2, y - 2, panelW - 4, 16)
+        ctx.fillRect(panelX + 2, y - 2, panelW - 4, Math.round(16 * s))
       }
 
       ctx.fillStyle = isMe ? '#FFD700' : (entry.isAlive ? '#FFF' : '#666')
       const nameStr = entry.name.length > 10 ? entry.name.slice(0, 10) + '..' : entry.name
       ctx.textAlign = 'left'
-      ctx.fillText(`${i + 1}. ${nameStr}`, panelX + 10, y)
+      ctx.fillText(`${i + 1}. ${nameStr}`, panelX + Math.round(10 * s), y)
       ctx.textAlign = 'right'
-      ctx.fillText(`${entry.stars}`, panelX + panelW - 10, y)
+      ctx.fillText(`${entry.stars}`, panelX + panelW - Math.round(10 * s), y)
       ctx.textAlign = 'left'
     }
   }
 
   private renderCTFScores(ctx: CanvasRenderingContext2D, w: number, ctf: import('@shared/types.js').CTFState, timeRemaining: number): void {
-    const panelW = 160
-    const panelH = 52
+    const s = this.s
+    const panelW = Math.round(160 * s)
+    const panelH = Math.round(52 * s)
     const x = (w - panelW) / 2
-    const y = 10
+    const y = Math.round(10 * s)
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
     this.roundRect(ctx, x, y, panelW, panelH, 8)
     ctx.fill()
 
     // Scores row
-    ctx.font = 'bold 18px Arial'
+    ctx.font = `bold ${Math.round(18 * s)}px Arial`
     ctx.textBaseline = 'middle'
-    const scoreY = y + 18
+    const scoreY = y + Math.round(18 * s)
 
-    // Team A score (blue)
     ctx.fillStyle = '#4488FF'
     ctx.textAlign = 'right'
-    ctx.fillText(`${ctf.scoreA}`, x + panelW / 2 - 12, scoreY)
+    ctx.fillText(`${ctf.scoreA}`, x + panelW / 2 - Math.round(12 * s), scoreY)
 
-    // Separator
     ctx.fillStyle = '#AAA'
     ctx.textAlign = 'center'
     ctx.fillText(':', x + panelW / 2, scoreY)
 
-    // Team B score (red)
     ctx.fillStyle = '#FF4444'
     ctx.textAlign = 'left'
-    ctx.fillText(`${ctf.scoreB}`, x + panelW / 2 + 12, scoreY)
+    ctx.fillText(`${ctf.scoreB}`, x + panelW / 2 + Math.round(12 * s), scoreY)
 
     // Timer row
     const mins = Math.floor(timeRemaining / 60)
@@ -315,22 +328,23 @@ export class HudRenderer {
     if (isUrgent) {
       const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 150)
       ctx.fillStyle = `rgba(255, 50, 50, ${pulse})`
-      ctx.font = 'bold 14px Arial'
+      ctx.font = `bold ${Math.round(14 * s)}px Arial`
     } else {
       ctx.fillStyle = '#CCC'
-      ctx.font = '13px Arial'
+      ctx.font = `${Math.round(13 * s)}px Arial`
     }
     ctx.textAlign = 'center'
-    ctx.fillText(timerStr, x + panelW / 2, y + 40)
+    ctx.fillText(timerStr, x + panelW / 2, y + Math.round(40 * s))
   }
 
   private renderFlagCarrierWarning(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const s = this.s
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200)
     ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`
-    ctx.font = 'bold 18px Arial'
+    ctx.font = `bold ${Math.round(18 * s)}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    ctx.fillText('YOU HAVE THE FLAG!', w / 2, 52)
+    ctx.fillText('У ТЕБЯ ФЛАГ!', w / 2, Math.round(52 * s))
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D, w: number, h: number, timeRemaining: number): void {
@@ -383,29 +397,45 @@ export class HudRenderer {
   }
 
   private renderStuckHint(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const s = this.s
     const onCooldown = this.unstickCooldownMs > 0
     const pulse = 0.6 + 0.3 * Math.sin(Date.now() / 300)
 
-    const text = onCooldown
-      ? `ПРОБЕЛ (${Math.ceil(this.unstickCooldownMs / 1000)}с)`
-      : 'Нажми ПРОБЕЛ если застрял'
+    const text = this.isMobile
+      ? (onCooldown ? `ЗАСТРЯЛ (${Math.ceil(this.unstickCooldownMs / 1000)}с)` : 'ЗАСТРЯЛ? НАЖМИ!')
+      : (onCooldown ? `ПРОБЕЛ (${Math.ceil(this.unstickCooldownMs / 1000)}с)` : 'Нажми ПРОБЕЛ если застрял')
     const textColor = onCooldown ? `rgba(150, 150, 150, ${pulse})` : `rgba(255, 220, 100, ${pulse})`
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    const textW = ctx.measureText(text).width + 30 || 250
-    this.roundRect(ctx, (w - textW) / 2, h - 60, textW, 30, 8)
+    ctx.font = `bold ${Math.round(14 * s)}px Arial`
+    const textW = ctx.measureText(text).width + Math.round(30 * s) || 250
+    const btnH = this.isMobile ? Math.round(44 * s) : 30
+    const btnX = (w - textW) / 2
+    const btnY = h - btnH - (this.isMobile ? 20 : 30)
+
+    // Save rect for touch hit-testing
+    this.stuckButtonRect = { x: btnX, y: btnY, w: textW, h: btnH }
+
+    ctx.fillStyle = this.isMobile ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)'
+    this.roundRect(ctx, btnX, btnY, textW, btnH, 8)
     ctx.fill()
 
+    if (this.isMobile && !onCooldown) {
+      ctx.strokeStyle = 'rgba(255, 220, 100, 0.6)'
+      ctx.lineWidth = 2
+      this.roundRect(ctx, btnX, btnY, textW, btnH, 8)
+      ctx.stroke()
+    }
+
     ctx.fillStyle = textColor
-    ctx.font = 'bold 14px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(text, w / 2, h - 45)
+    ctx.fillText(text, w / 2, btnY + btnH / 2)
   }
 
   private renderShop(ctx: CanvasRenderingContext2D, w: number, h: number, tank: Tank): void {
-    const shopW = 280
-    const shopH = 180
+    const s = this.s
+    const shopW = Math.round(280 * s)
+    const shopH = Math.round(180 * s)
     const shopX = (w - shopW) / 2
     const shopY = (h - shopH) / 2
 
@@ -424,15 +454,15 @@ export class HudRenderer {
 
     // Title
     ctx.fillStyle = '#FFD700'
-    ctx.font = 'bold 18px Arial'
+    ctx.font = `bold ${Math.round(18 * s)}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    ctx.fillText('SHOP', shopX + shopW / 2, shopY + 12)
+    ctx.fillText('SHOP', shopX + shopW / 2, shopY + Math.round(12 * s))
 
     // Stars balance
     ctx.fillStyle = '#FFF'
-    ctx.font = '13px Arial'
-    ctx.fillText(`Stars: ${tank.stars}`, shopX + shopW / 2, shopY + 36)
+    ctx.font = `${Math.round(13 * s)}px Arial`
+    ctx.fillText(`Stars: ${tank.stars}`, shopX + shopW / 2, shopY + Math.round(36 * s))
 
     // Items
     const items = [
@@ -441,9 +471,9 @@ export class HudRenderer {
       { key: '3', name: 'x2 Damage', desc: 'Rockets (10s)', cost: 2, color: '#FF6600' }
     ]
 
-    const itemY = shopY + 58
-    const itemH = 32
-    const itemGap = 6
+    const itemY = shopY + Math.round(58 * s)
+    const itemH = Math.round(32 * s)
+    const itemGap = Math.round(6 * s)
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
@@ -452,34 +482,34 @@ export class HudRenderer {
 
       // Item background
       ctx.fillStyle = canAfford ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)'
-      this.roundRect(ctx, shopX + 12, y, shopW - 24, itemH, 6)
+      this.roundRect(ctx, shopX + Math.round(12 * s), y, shopW - Math.round(24 * s), itemH, 6)
       ctx.fill()
 
       // Key badge
       ctx.fillStyle = canAfford ? item.color : '#555'
-      ctx.font = 'bold 14px Arial'
+      ctx.font = `bold ${Math.round(14 * s)}px Arial`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(`[${item.key}]`, shopX + 36, y + itemH / 2)
+      ctx.fillText(`[${item.key}]`, shopX + Math.round(36 * s), y + itemH / 2)
 
       // Name
       ctx.fillStyle = canAfford ? '#FFF' : '#666'
-      ctx.font = 'bold 13px Arial'
+      ctx.font = `bold ${Math.round(13 * s)}px Arial`
       ctx.textAlign = 'left'
-      ctx.fillText(item.name, shopX + 58, y + itemH / 2)
+      ctx.fillText(item.name, shopX + Math.round(58 * s), y + itemH / 2)
 
       // Cost
       ctx.fillStyle = canAfford ? '#FFD700' : '#555'
-      ctx.font = '12px Arial'
+      ctx.font = `${Math.round(12 * s)}px Arial`
       ctx.textAlign = 'right'
-      ctx.fillText(`${item.cost} stars`, shopX + shopW - 20, y + itemH / 2)
+      ctx.fillText(`${item.cost} stars`, shopX + shopW - Math.round(20 * s), y + itemH / 2)
     }
 
     // Close hint
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
-    ctx.font = '11px Arial'
+    ctx.font = `${Math.round(11 * s)}px Arial`
     ctx.textAlign = 'center'
-    ctx.fillText('Press Esc or Ь to close', shopX + shopW / 2, shopY + shopH - 14)
+    ctx.fillText('Press Esc or Ь to close', shopX + shopW / 2, shopY + shopH - Math.round(14 * s))
   }
 
   private drawStarShape(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {

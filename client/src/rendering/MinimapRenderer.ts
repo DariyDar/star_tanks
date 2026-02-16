@@ -3,6 +3,7 @@ import type { Camera } from '../game/Camera.js'
 
 const MINIMAP_SIZE = 150
 const MINIMAP_PADDING = 10
+const isMobile = typeof window !== 'undefined' && 'ontouchstart' in window
 
 export class MinimapRenderer {
   render(
@@ -13,33 +14,36 @@ export class MinimapRenderer {
     mapHeight: number,
     myId: string
   ): void {
+    const s = isMobile ? 1.3 : 1
+    const size = Math.round(MINIMAP_SIZE * s)
+    const pad = Math.round(MINIMAP_PADDING * s)
     const canvasW = ctx.canvas.width
     const canvasH = ctx.canvas.height
-    const mx = canvasW - MINIMAP_SIZE - MINIMAP_PADDING
-    const my = canvasH - MINIMAP_SIZE - MINIMAP_PADDING
+    const mx = canvasW - size - pad
+    const my = canvasH - size - pad
 
     // Background
     ctx.fillStyle = 'rgba(0,0,0,0.6)'
-    ctx.fillRect(mx, my, MINIMAP_SIZE, MINIMAP_SIZE)
+    ctx.fillRect(mx, my, size, size)
 
     // Border
     ctx.strokeStyle = '#666'
     ctx.lineWidth = 1
-    ctx.strokeRect(mx, my, MINIMAP_SIZE, MINIMAP_SIZE)
+    ctx.strokeRect(mx, my, size, size)
 
-    const scaleX = MINIMAP_SIZE / mapWidth
-    const scaleY = MINIMAP_SIZE / mapHeight
+    const scaleX = size / mapWidth
+    const scaleY = size / mapHeight
 
     // Zone circle
     if (state.zone.currentRadius < Math.max(mapWidth, mapHeight)) {
       ctx.save()
       ctx.beginPath()
-      ctx.rect(mx, my, MINIMAP_SIZE, MINIMAP_SIZE)
+      ctx.rect(mx, my, size, size)
       ctx.clip()
 
       // Danger zone (outside circle is red)
       ctx.fillStyle = 'rgba(255,0,0,0.3)'
-      ctx.fillRect(mx, my, MINIMAP_SIZE, MINIMAP_SIZE)
+      ctx.fillRect(mx, my, size, size)
 
       // Safe zone (inside circle is clear)
       ctx.globalCompositeOperation = 'destination-out'
@@ -57,6 +61,8 @@ export class MinimapRenderer {
     }
 
     // Tanks as dots
+    const dotS = Math.round(3 * s)
+    const dotL = Math.round(5 * s)
     for (const tank of state.tanks) {
       if (!tank.isAlive) continue
       const px = mx + tank.position.x * scaleX
@@ -64,13 +70,13 @@ export class MinimapRenderer {
 
       if (tank.id === myId) {
         ctx.fillStyle = '#FFF'
-        ctx.fillRect(px - 2, py - 2, 5, 5)
+        ctx.fillRect(px - dotL / 2, py - dotL / 2, dotL, dotL)
       } else if (tank.isBot) {
         ctx.fillStyle = '#FF4444'
-        ctx.fillRect(px - 1, py - 1, 3, 3)
+        ctx.fillRect(px - dotS / 2, py - dotS / 2, dotS, dotS)
       } else {
         ctx.fillStyle = '#44FF44'
-        ctx.fillRect(px - 1, py - 1, 3, 3)
+        ctx.fillRect(px - dotS / 2, py - dotS / 2, dotS, dotS)
       }
     }
 
@@ -80,7 +86,7 @@ export class MinimapRenderer {
       const px = mx + star.position.x * scaleX
       const py = my + star.position.y * scaleY
       ctx.fillStyle = '#FFD700'
-      ctx.fillRect(px, py, 2, 2)
+      ctx.fillRect(px, py, Math.round(2 * s), Math.round(2 * s))
     }
 
     // Portals as blue dots
@@ -89,7 +95,7 @@ export class MinimapRenderer {
       const py = my + portal.position.y * scaleY
       ctx.fillStyle = '#00FFFF'
       ctx.beginPath()
-      ctx.arc(px, py, 3, 0, Math.PI * 2)
+      ctx.arc(px, py, Math.round(3 * s), 0, Math.PI * 2)
       ctx.fill()
     }
 

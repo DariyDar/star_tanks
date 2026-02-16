@@ -22,7 +22,9 @@ export class PhysicsEngine {
     tank.hullAngle = moveAngle
 
     const vec = angleToVec(moveAngle)
-    const cellsPerTick = tank.speed * (TICK_MS / 1000)
+    // Flag carriers move 30% slower
+    const effectiveSpeed = tank.hasFlag ? tank.speed * 0.7 : tank.speed
+    const cellsPerTick = effectiveSpeed * (TICK_MS / 1000)
 
     const dx = vec.x * cellsPerTick
     const dy = vec.y * cellsPerTick

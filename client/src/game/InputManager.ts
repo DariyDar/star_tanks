@@ -164,4 +164,13 @@ export class InputManager {
   get unstickCooldownRemaining(): number {
     return Math.max(0, 10000 - (Date.now() - this.lastUnstickTime))
   }
+
+  /** Trigger unstick from external source (e.g. mobile button tap) */
+  triggerUnstick(): void {
+    const now = Date.now()
+    if (now - this.lastUnstickTime >= 10000) {
+      this.pendingUnstick = true
+      this.lastUnstickTime = now
+    }
+  }
 }

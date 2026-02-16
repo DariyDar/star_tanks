@@ -56,6 +56,21 @@ let wasFiring = false
 let stuckTimer = 0
 let lastTankPos = { x: 0, y: 0 }
 
+// Mobile stuck button tap handler
+if ('ontouchstart' in window) {
+  canvas.addEventListener('touchstart', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i]
+      const rect = canvas.getBoundingClientRect()
+      const tx = touch.clientX - rect.left
+      const ty = touch.clientY - rect.top
+      if (renderer.hitTestStuckButton(tx, ty)) {
+        input.triggerUnstick()
+      }
+    }
+  }, { passive: true })
+}
+
 function joinGame(name: string, mapId: string, color: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number) {
   lastPlayerName = name
   lastMapId = mapId

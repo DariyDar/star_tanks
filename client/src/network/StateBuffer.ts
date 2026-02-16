@@ -40,7 +40,33 @@ export class StateBuffer {
     }
 
     if (!prev || !next) {
-      // If renderTime is ahead of all states, use latest
+      // If renderTime is ahead of all states, extrapolate from last two
+      if (this.buffer.length >= 2) {
+        const a = this.buffer[this.buffer.length - 2]
+        const b = this.buffer[this.buffer.length - 1]
+        const gap = b.receiveTime - a.receiveTime
+        if (gap > 0) {
+          const elapsed = renderTime - b.receiveTime
+          // Clamp extrapolation to max 150ms to avoid overshooting
+          const t = Math.min(elapsed / gap, 1.5)
+          if (t > 0) {
+            const extraTanks = b.state.tanks.map(bTank => {
+              const aTank = a.state.tanks.find(at => at.id === bTank.id)
+              if (!aTank) return bTank
+              return {
+                ...bTank,
+                position: {
+                  x: bTank.position.x + (bTank.position.x - aTank.position.x) * t,
+                  y: bTank.position.y + (bTank.position.y - aTank.position.y) * t
+                },
+                hullAngle: lerpAngle(aTank.hullAngle, bTank.hullAngle, 1 + t),
+                turretAngle: lerpAngle(aTank.turretAngle, bTank.turretAngle, 1 + t)
+              }
+            })
+            return { ...b.state, tanks: extraTanks }
+          }
+        }
+      }
       return this.buffer[this.buffer.length - 1].state
     }
 
