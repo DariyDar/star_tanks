@@ -24,10 +24,13 @@ export class RoomManager {
     const events: GameRoomEvents = {
       onStateUpdate: (state, room) => {
         try {
-          const buf = room.buildBinaryState(state.tick, state.timeElapsed)
-          this.io.to(roomId).emit('server:state', buf)
+          const humanIds = room.getHumanPlayerIds()
+          for (const pid of humanIds) {
+            const buf = room.encodeCulledState(state, pid)
+            this.io.to(pid).emit('server:state', buf)
+          }
         } catch (e) {
-          // fallback to JSON
+          // fallback to JSON broadcast
           this.io.to(roomId).emit('server:state', state)
         }
       },

@@ -620,6 +620,37 @@ export class GameRoom {
     return encodeFullState(state, this.indexMap as any)
   }
 
+  /** Encode a per-player culled binary state (filters bullets by proximity) */
+  encodeCulledState(state: GameState, playerId: string): ArrayBuffer {
+    const tank = this.playerManager.getTank(playerId)
+    if (!tank) {
+      return encodeFullState(state, this.indexMap as any)
+    }
+
+    const px = tank.position.x
+    const py = tank.position.y
+    const CULL = 25 // cells from player center
+
+    // Filter bullets: only those within cull box
+    const culledBullets = state.bullets.filter(b =>
+      Math.abs(b.position.x - px) <= CULL && Math.abs(b.position.y - py) <= CULL
+    )
+
+    const culledState: GameState = {
+      ...state,
+      bullets: culledBullets
+    }
+
+    return encodeFullState(culledState, this.indexMap as any)
+  }
+
+  /** Get socket IDs of all human (non-bot) players */
+  getHumanPlayerIds(): string[] {
+    return this.playerManager.getAllTanks()
+      .filter(t => !t.isBot)
+      .map(t => t.id)
+  }
+
   getIndexMap(): IndexMap {
     return this.indexMap
   }

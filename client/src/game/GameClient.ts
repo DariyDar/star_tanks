@@ -1,8 +1,11 @@
 import type { GameState, Tank, CompressedMapData, Obstacle, Vec2 } from '@shared/types.js'
 import { ObstacleType } from '@shared/types.js'
-import { BRICK_HP, TANK_SPEED, TANK_RADIUS } from '@shared/constants.js'
+import { BRICK_HP, TANK_SPEED, TANK_RADIUS, MAP_WIDTH } from '@shared/constants.js'
 import { angleToVec, clamp } from '@shared/math.js'
 import { Camera } from './Camera.js'
+
+// Numeric key for obstacle lookups (avoids string creation per frame)
+function obsKey(x: number, y: number): number { return y * MAP_WIDTH + x }
 
 export class GameClient {
   playerId = ''
@@ -10,7 +13,7 @@ export class GameClient {
   state: GameState | null = null
   camera: Camera
   obstacles: Obstacle[] = []
-  private obstacleSet = new Set<string>()
+  private obstacleSet = new Set<number>()
   mapWidth = 0
   mapHeight = 0
 
@@ -40,7 +43,7 @@ export class GameClient {
         }
         this.obstacles.push(obs)
         if (obs.type !== ObstacleType.Bush) {
-          this.obstacleSet.add(`${obs.x},${obs.y}`)
+          this.obstacleSet.add(obsKey(obs.x, obs.y))
         }
       }
     }
@@ -110,7 +113,7 @@ export class GameClient {
 
     for (let gy = minY; gy <= maxY; gy++) {
       for (let gx = minX; gx <= maxX; gx++) {
-        if (!this.obstacleSet.has(`${gx},${gy}`)) continue
+        if (!this.obstacleSet.has(obsKey(gx, gy))) continue
 
         const closestX = clamp(cx, gx, gx + 1)
         const closestY = clamp(cy, gy, gy + 1)
@@ -132,7 +135,7 @@ export class GameClient {
     // Remove destroyed obstacles from local map
     if (state.destroyedObstacles && state.destroyedObstacles.length > 0) {
       for (const pos of state.destroyedObstacles) {
-        const key = `${pos.x},${pos.y}`
+        const key = obsKey(pos.x, pos.y)
         if (this.obstacleSet.has(key)) {
           this.obstacleSet.delete(key)
           const idx = this.obstacles.findIndex(o => o.x === pos.x && o.y === pos.y)
@@ -155,7 +158,6 @@ export class GameClient {
           this.predictedPos = { ...myTank.position }
         } else if (dist > 0.05) {
           // Adaptive blend: stronger correction when further from server
-          // dist 0.05-0.5 → blend 0.15, dist 0.5-2 → blend 0.3, dist 2-5 → blend 0.5
           const blendFactor = dist > 2 ? 0.5 : dist > 0.5 ? 0.3 : 0.15
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor

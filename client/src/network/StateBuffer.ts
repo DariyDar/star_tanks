@@ -1,10 +1,12 @@
-import type { GameState } from '@shared/types.js'
+import type { GameState, Tank, Bullet } from '@shared/types.js'
 import { lerp, lerpAngle } from '@shared/math.js'
 
 // Use client-side receive time for interpolation (avoids clock sync issues)
 interface TimedState {
   state: GameState
   receiveTime: number  // Client-side Date.now() when state was received
+  tankMap: Map<string, Tank>    // Pre-built for O(1) lookup
+  bulletMap: Map<string, Bullet> // Pre-built for O(1) lookup
 }
 
 const INTERPOLATION_BUFFER_MS = 100 // Render 100ms behind latest to allow smooth interpolation
@@ -14,10 +16,13 @@ export class StateBuffer {
   private maxSize = 30
 
   push(state: GameState): void {
-    this.buffer.push({
-      state,
-      receiveTime: Date.now()
-    })
+    // Pre-build Maps for O(1) lookup during interpolation
+    const tankMap = new Map<string, Tank>()
+    for (const t of state.tanks) tankMap.set(t.id, t)
+    const bulletMap = new Map<string, Bullet>()
+    for (const b of state.bullets) bulletMap.set(b.id, b)
+
+    this.buffer.push({ state, receiveTime: Date.now(), tankMap, bulletMap })
     if (this.buffer.length > this.maxSize) {
       this.buffer.shift()
     }
@@ -51,7 +56,7 @@ export class StateBuffer {
           const t = Math.min(elapsed / gap, 1.5)
           if (t > 0) {
             const extraTanks = b.state.tanks.map(bTank => {
-              const aTank = a.state.tanks.find(at => at.id === bTank.id)
+              const aTank = a.tankMap.get(bTank.id)
               if (!aTank) return bTank
               return {
                 ...bTank,
@@ -72,9 +77,9 @@ export class StateBuffer {
 
     const t = (renderTime - prev.receiveTime) / (next.receiveTime - prev.receiveTime)
 
-    // Interpolate tank positions and angles
+    // Interpolate tank positions and angles — O(1) lookup via Map
     const interpolatedTanks = next.state.tanks.map(nextTank => {
-      const prevTank = prev!.state.tanks.find(pt => pt.id === nextTank.id)
+      const prevTank = prev!.tankMap.get(nextTank.id)
       if (!prevTank) return nextTank
 
       return {
@@ -88,9 +93,9 @@ export class StateBuffer {
       }
     })
 
-    // Interpolate bullet positions
+    // Interpolate bullet positions — O(1) lookup via Map
     const interpolatedBullets = next.state.bullets.map(nextBullet => {
-      const prevBullet = prev!.state.bullets.find(pb => pb.id === nextBullet.id)
+      const prevBullet = prev!.bulletMap.get(nextBullet.id)
       if (!prevBullet) return nextBullet
 
       return {
