@@ -8,6 +8,9 @@ import { ResultScreen } from './ui/ResultScreen.js'
 import { MobileControls } from './ui/MobileControls.js'
 import { LobbyScreen } from './ui/LobbyScreen.js'
 
+// Try to lock landscape orientation on mobile
+try { (screen.orientation as any)?.lock?.('landscape').catch(() => {}) } catch {}
+
 const canvas = document.getElementById('game') as HTMLCanvasElement
 canvas.tabIndex = 1 // Make canvas focusable for keyboard input
 canvas.style.outline = 'none' // Remove focus outline
@@ -201,12 +204,14 @@ function gameLoop(now: number) {
     inputSendTimer += dt * 1000
     if (inputSendTimer >= INPUT_SEND_INTERVAL) {
       inputSendTimer -= INPUT_SEND_INTERVAL
+      const shopBuy = input.consumeShopBuy()
       socket.sendInput({
         tick: client.state?.tick ?? 0,
         sequenceNumber: sequenceNumber++,
         moveAngle,
         aimAngle,
-        fire: input.isFiring()
+        fire: input.isFiring(),
+        shopBuy
       })
     }
 
@@ -248,6 +253,7 @@ function gameLoop(now: number) {
   } else if (resultScreen.isVisible) {
     resultScreen.render(canvas.getContext('2d')!)
   } else {
+    renderer.setShopOpen(input.shopOpen)
     renderer.render(client)
     if (mobileControls.isActive) {
       mobileControls.render(canvas.getContext('2d')!)

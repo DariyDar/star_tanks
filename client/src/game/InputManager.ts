@@ -17,11 +17,30 @@ export class InputManager {
   private mobileFire = false
   private isMobile = false
 
+  // Shop state
+  shopOpen = false
+  private pendingShopBuy: number | null = null
+
   constructor() {
     window.addEventListener('keydown', (e) => {
       // Ignore keystrokes when typing in input fields
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
       this.keys.add(e.key)
+
+      // Shop toggle: Ь key (Russian layout) or 'b' for backup
+      if (e.key === 'ь' || e.key === 'Ь') {
+        this.shopOpen = !this.shopOpen
+      }
+      // Close shop with Escape
+      if (e.key === 'Escape' && this.shopOpen) {
+        this.shopOpen = false
+      }
+      // Shop item selection (1, 2, 3) when shop is open
+      if (this.shopOpen) {
+        if (e.key === '1') { this.pendingShopBuy = 1; this.shopOpen = false }
+        if (e.key === '2') { this.pendingShopBuy = 2; this.shopOpen = false }
+        if (e.key === '3') { this.pendingShopBuy = 3; this.shopOpen = false }
+      }
     })
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.key)
@@ -62,10 +81,10 @@ export class InputManager {
     if (this.isMobile) return this.mobileMove
 
     // WASD + arrows → angle
-    const up = this.keys.has('ArrowUp') || this.keys.has('w') || this.keys.has('W')
-    const down = this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S')
-    const left = this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A')
-    const right = this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D')
+    const up = this.keys.has('ArrowUp') || this.keys.has('w') || this.keys.has('W') || this.keys.has('ц') || this.keys.has('Ц')
+    const down = this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || this.keys.has('ы') || this.keys.has('Ы')
+    const left = this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A') || this.keys.has('ф') || this.keys.has('Ф')
+    const right = this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D') || this.keys.has('в') || this.keys.has('В')
 
     const dx = (right ? 1 : 0) - (left ? 1 : 0)
     const dy = (down ? 1 : 0) - (up ? 1 : 0)
@@ -110,5 +129,14 @@ export class InputManager {
 
   setIsMobile(value: boolean): void {
     this.isMobile = value
+  }
+
+  consumeShopBuy(): number | undefined {
+    if (this.pendingShopBuy !== null) {
+      const buy = this.pendingShopBuy
+      this.pendingShopBuy = null
+      return buy
+    }
+    return undefined
   }
 }

@@ -1,5 +1,5 @@
 import { VIEWPORT_CELLS, BULLET_RANGE } from '@shared/constants.js'
-import { PowerUpType, type Tank } from '@shared/types.js'
+import { PowerUpType, type Tank, type CTFState } from '@shared/types.js'
 import type { Bullet } from '@shared/types.js'
 import type { GameClient } from '../game/GameClient.js'
 import { MapRenderer } from './MapRenderer.js'
@@ -97,6 +97,11 @@ export class Renderer {
 
     // Zone overlay
     this.zoneRenderer.render(ctx, state.zone, camera, cellPx)
+
+    // CTF bases and flags
+    if (state.ctf) {
+      this.renderCTF(ctx, state.ctf, camera, cellPx)
+    }
 
     // Tank trails (drawn first, under everything)
     this.effects.renderTankTrails(ctx, camera, cellPx)
@@ -604,7 +609,97 @@ export class Renderer {
     ctx.fillText('Connecting...', canvas.width / 2, canvas.height / 2)
   }
 
+  private renderCTF(ctx: CanvasRenderingContext2D, ctf: CTFState, camera: { x: number; y: number }, cellPx: number): void {
+    // Draw base territories with dashed rectangles
+    ctx.save()
+    ctx.setLineDash([cellPx * 0.3, cellPx * 0.2])
+    ctx.lineWidth = 2
+
+    // Base A (blue)
+    ctx.strokeStyle = 'rgba(68, 136, 255, 0.6)'
+    ctx.strokeRect(
+      (ctf.baseA.x - camera.x) * cellPx,
+      (ctf.baseA.y - camera.y) * cellPx,
+      ctf.baseA.w * cellPx,
+      ctf.baseA.h * cellPx
+    )
+    ctx.fillStyle = 'rgba(68, 136, 255, 0.05)'
+    ctx.fillRect(
+      (ctf.baseA.x - camera.x) * cellPx,
+      (ctf.baseA.y - camera.y) * cellPx,
+      ctf.baseA.w * cellPx,
+      ctf.baseA.h * cellPx
+    )
+
+    // Base B (red)
+    ctx.strokeStyle = 'rgba(255, 68, 68, 0.6)'
+    ctx.strokeRect(
+      (ctf.baseB.x - camera.x) * cellPx,
+      (ctf.baseB.y - camera.y) * cellPx,
+      ctf.baseB.w * cellPx,
+      ctf.baseB.h * cellPx
+    )
+    ctx.fillStyle = 'rgba(255, 68, 68, 0.05)'
+    ctx.fillRect(
+      (ctf.baseB.x - camera.x) * cellPx,
+      (ctf.baseB.y - camera.y) * cellPx,
+      ctf.baseB.w * cellPx,
+      ctf.baseB.h * cellPx
+    )
+
+    ctx.setLineDash([])
+    ctx.restore()
+
+    // Draw flags (only if not carried — carrier's tank shows it)
+    if (!ctf.flagACarrier) {
+      this.renderFlag(ctx, ctf.flagA, camera, cellPx, '#4488FF', ctf.flagADropped)
+    }
+    if (!ctf.flagBCarrier) {
+      this.renderFlag(ctx, ctf.flagB, camera, cellPx, '#FF4444', ctf.flagBDropped)
+    }
+  }
+
+  private renderFlag(ctx: CanvasRenderingContext2D, pos: { x: number; y: number }, camera: { x: number; y: number }, cellPx: number, color: string, dropped: boolean): void {
+    const sx = (pos.x - camera.x) * cellPx
+    const sy = (pos.y - camera.y) * cellPx
+    const flagSize = cellPx * 0.8
+
+    // Pole
+    ctx.strokeStyle = '#AAA'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(sx, sy + flagSize * 0.5)
+    ctx.lineTo(sx, sy - flagSize * 0.5)
+    ctx.stroke()
+
+    // Flag triangle
+    ctx.fillStyle = color
+    ctx.globalAlpha = dropped ? 0.7 : 1
+    ctx.beginPath()
+    ctx.moveTo(sx, sy - flagSize * 0.5)
+    ctx.lineTo(sx + flagSize * 0.6, sy - flagSize * 0.25)
+    ctx.lineTo(sx, sy)
+    ctx.closePath()
+    ctx.fill()
+    ctx.globalAlpha = 1
+
+    // Pulse glow if dropped
+    if (dropped) {
+      const pulse = 0.3 + 0.2 * Math.sin(Date.now() / 300)
+      ctx.fillStyle = color
+      ctx.globalAlpha = pulse
+      ctx.beginPath()
+      ctx.arc(sx, sy, flagSize * 0.6, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+  }
+
   get currentCellPx(): number {
     return this.cellPx
+  }
+
+  setShopOpen(open: boolean): void {
+    this.hudRenderer.shopOpen = open
   }
 }

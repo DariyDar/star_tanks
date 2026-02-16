@@ -1,6 +1,8 @@
 import type { GameState, Tank } from '@shared/types.js'
 
 export class HudRenderer {
+  shopOpen = false
+
   render(ctx: CanvasRenderingContext2D, state: GameState, myTank: Tank | undefined): void {
     const w = ctx.canvas.width
     const h = ctx.canvas.height
@@ -11,9 +13,9 @@ export class HudRenderer {
       this.renderHpBar(ctx, pad, pad + 48, myTank)
       this.renderKillsCounter(ctx, pad, pad + 80, myTank)
 
-      // Power-up indicator
+      // Power-up indicator with timer
       if (myTank.activePowerUp) {
-        this.renderPowerUpIndicator(ctx, pad, pad + 108, myTank)
+        this.renderPowerUpIndicator(ctx, pad, pad + 108, myTank, state.timestamp)
       }
     }
 
@@ -22,6 +24,21 @@ export class HudRenderer {
 
     // Leaderboard
     this.renderLeaderboard(ctx, state, myTank?.id)
+
+    // CTF scores
+    if (state.ctf) {
+      this.renderCTFScores(ctx, w, state.ctf)
+
+      // Flag carrier indicator
+      if (myTank?.hasFlag) {
+        this.renderFlagCarrierWarning(ctx, w, h)
+      }
+    }
+
+    // Shop overlay
+    if (this.shopOpen && myTank) {
+      this.renderShop(ctx, w, h, myTank)
+    }
   }
 
   private renderStarCounter(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank): void {
@@ -117,7 +134,7 @@ export class HudRenderer {
     ctx.fillText(`Kills: ${tank.kills}`, x + 10, y + 11)
   }
 
-  private renderPowerUpIndicator(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank): void {
+  private renderPowerUpIndicator(ctx: CanvasRenderingContext2D, x: number, y: number, tank: Tank, timestamp: number): void {
     const powerUpColors: Record<string, string> = {
       rapidFire: '#FF4444',
       speed: '#44FF44',
@@ -137,22 +154,49 @@ export class HudRenderer {
       rocket: 'Rockets'
     }
     const color = powerUpColors[tank.activePowerUp!] ?? '#FFF'
+    const panelW = 160
+    const panelH = 32
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
-    this.roundRect(ctx, x, y, 140, 22, 4)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    this.roundRect(ctx, x, y, panelW, panelH, 6)
     ctx.fill()
 
     // Colored indicator dot
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.arc(x + 14, y + 11, 5, 0, Math.PI * 2)
+    ctx.arc(x + 14, y + panelH / 2, 6, 0, Math.PI * 2)
     ctx.fill()
 
+    // Power-up name
     ctx.fillStyle = color
     ctx.font = 'bold 12px Arial'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText(powerUpNames[tank.activePowerUp!] ?? tank.activePowerUp, x + 24, y + 11)
+    ctx.fillText(powerUpNames[tank.activePowerUp!] ?? tank.activePowerUp, x + 26, y + panelH / 2)
+
+    // Timer countdown
+    if (tank.powerUpEndTime > 0) {
+      const remaining = Math.max(0, (tank.powerUpEndTime - timestamp) / 1000)
+      const remainingStr = remaining.toFixed(1) + 's'
+
+      ctx.fillStyle = '#FFF'
+      ctx.font = 'bold 11px Arial'
+      ctx.textAlign = 'right'
+      ctx.fillText(remainingStr, x + panelW - 8, y + panelH / 2)
+
+      // Progress bar below text
+      const barX = x + 4
+      const barY = y + panelH - 5
+      const barW = panelW - 8
+      const barH = 3
+      const totalDuration = 10000 // POWERUP_DURATION from constants
+      const ratio = Math.min(1, Math.max(0, (tank.powerUpEndTime - timestamp) / totalDuration))
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
+      ctx.fillRect(barX, barY, barW, barH)
+      ctx.fillStyle = color
+      ctx.fillRect(barX, barY, barW * ratio, barH)
+    }
   }
 
   private renderGameInfo(ctx: CanvasRenderingContext2D, w: number, pad: number, state: GameState): void {
@@ -218,6 +262,124 @@ export class HudRenderer {
       ctx.fillText(`${entry.stars}`, panelX + panelW - 10, y)
       ctx.textAlign = 'left'
     }
+  }
+
+  private renderCTFScores(ctx: CanvasRenderingContext2D, w: number, ctf: import('@shared/types.js').CTFState): void {
+    const panelW = 120
+    const panelH = 36
+    const x = (w - panelW) / 2
+    const y = 10
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+    this.roundRect(ctx, x, y, panelW, panelH, 8)
+    ctx.fill()
+
+    ctx.font = 'bold 16px Arial'
+    ctx.textBaseline = 'middle'
+    const centerY = y + panelH / 2
+
+    // Team A score (blue)
+    ctx.fillStyle = '#4488FF'
+    ctx.textAlign = 'right'
+    ctx.fillText(`${ctf.scoreA}`, x + panelW / 2 - 10, centerY)
+
+    // Separator
+    ctx.fillStyle = '#AAA'
+    ctx.textAlign = 'center'
+    ctx.fillText(':', x + panelW / 2, centerY)
+
+    // Team B score (red)
+    ctx.fillStyle = '#FF4444'
+    ctx.textAlign = 'left'
+    ctx.fillText(`${ctf.scoreB}`, x + panelW / 2 + 10, centerY)
+  }
+
+  private renderFlagCarrierWarning(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200)
+    ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`
+    ctx.font = 'bold 18px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+    ctx.fillText('YOU HAVE THE FLAG!', w / 2, 52)
+  }
+
+  private renderShop(ctx: CanvasRenderingContext2D, w: number, h: number, tank: Tank): void {
+    const shopW = 280
+    const shopH = 180
+    const shopX = (w - shopW) / 2
+    const shopY = (h - shopH) / 2
+
+    // Dimmed background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+    ctx.fillRect(0, 0, w, h)
+
+    // Shop panel
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.95)'
+    this.roundRect(ctx, shopX, shopY, shopW, shopH, 12)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)'
+    ctx.lineWidth = 2
+    this.roundRect(ctx, shopX, shopY, shopW, shopH, 12)
+    ctx.stroke()
+
+    // Title
+    ctx.fillStyle = '#FFD700'
+    ctx.font = 'bold 18px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+    ctx.fillText('SHOP', shopX + shopW / 2, shopY + 12)
+
+    // Stars balance
+    ctx.fillStyle = '#FFF'
+    ctx.font = '13px Arial'
+    ctx.fillText(`Stars: ${tank.stars}`, shopX + shopW / 2, shopY + 36)
+
+    // Items
+    const items = [
+      { key: '1', name: 'Speed Boost', desc: '+50% speed (10s)', cost: 2, color: '#44FF44' },
+      { key: '2', name: '+2 HP', desc: 'Instant heal', cost: 2, color: '#FF66FF' },
+      { key: '3', name: 'x2 Damage', desc: 'Rockets (10s)', cost: 2, color: '#FF6600' }
+    ]
+
+    const itemY = shopY + 58
+    const itemH = 32
+    const itemGap = 6
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const y = itemY + i * (itemH + itemGap)
+      const canAfford = tank.stars >= item.cost
+
+      // Item background
+      ctx.fillStyle = canAfford ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)'
+      this.roundRect(ctx, shopX + 12, y, shopW - 24, itemH, 6)
+      ctx.fill()
+
+      // Key badge
+      ctx.fillStyle = canAfford ? item.color : '#555'
+      ctx.font = 'bold 14px Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(`[${item.key}]`, shopX + 36, y + itemH / 2)
+
+      // Name
+      ctx.fillStyle = canAfford ? '#FFF' : '#666'
+      ctx.font = 'bold 13px Arial'
+      ctx.textAlign = 'left'
+      ctx.fillText(item.name, shopX + 58, y + itemH / 2)
+
+      // Cost
+      ctx.fillStyle = canAfford ? '#FFD700' : '#555'
+      ctx.font = '12px Arial'
+      ctx.textAlign = 'right'
+      ctx.fillText(`${item.cost} stars`, shopX + shopW - 20, y + itemH / 2)
+    }
+
+    // Close hint
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+    ctx.font = '11px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('Press Esc or Ь to close', shopX + shopW / 2, shopY + shopH - 14)
   }
 
   private drawStarShape(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {

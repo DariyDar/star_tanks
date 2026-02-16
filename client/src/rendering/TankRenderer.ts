@@ -182,6 +182,25 @@ export class TankRenderer {
         ctx.textBaseline = 'top'
         ctx.fillText(`${tank.stars}`, cx, sy + cellPx + 2)
       }
+
+      // Flag carrier indicator
+      if (tank.hasFlag) {
+        const flagColor = tank.team === 'a' ? '#FF4444' : '#4488FF'  // Carries enemy flag
+        const fs = cellPx * 0.4
+        ctx.fillStyle = flagColor
+        ctx.beginPath()
+        ctx.moveTo(cx + s, cy - s)
+        ctx.lineTo(cx + s + fs * 0.6, cy - s + fs * 0.25)
+        ctx.lineTo(cx + s, cy - s + fs * 0.5)
+        ctx.closePath()
+        ctx.fill()
+        ctx.strokeStyle = '#AAA'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(cx + s, cy - s)
+        ctx.lineTo(cx + s, cy - s + fs * 0.7)
+        ctx.stroke()
+      }
     }
   }
 

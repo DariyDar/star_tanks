@@ -37,7 +37,10 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
   // Boss encoding size: hasBoss(1) + x(4) + y(4) + hp(2) + maxHp(2) + phase(1) + angle(4) + isAlive(1) + hasLaser(1) + laserAngle(4) + attack(1) = 25
   const bossSize = state.boss ? 25 : 1
 
-  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*31) + Leaderboard(1+n*6) + Boss(1 or 25)
+  // CTF encoding size: hasCTF(1) + flagAx(4) + flagAy(4) + flagBx(4) + flagBy(4) + scoreA(1) + scoreB(1) + baseAx(2) + baseAy(2) + baseAw(2) + baseAh(2) + baseBx(2) + baseBy(2) + baseBw(2) + baseBh(2) + flags(1) = 36
+  const ctfSize = state.ctf ? 36 : 1
+
+  // Header(15) + Zone(18) + Stars(1+n*6) + Bullets(1+n*14) + PowerUps(1+n*10) + Portals(1+n*9) + Tanks(1+n*35) + Leaderboard(1+n*6) + Boss(1 or 25) + CTF(1 or 36)
   const size = 15 + 18 +
     1 + starCount * STAR_ITEM_SIZE +
     1 + bulletCount * BULLET_ENCODE_SIZE +
@@ -45,7 +48,8 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     1 + portalCount * PORTAL_ENCODE_SIZE +
     1 + tankCount * TANK_ENCODE_SIZE +
     1 + leaderboardCount * LEADERBOARD_ENTRY_SIZE +
-    bossSize
+    bossSize +
+    ctfSize
 
   const buffer = new ArrayBuffer(size)
   const view = new DataView(buffer)
@@ -137,6 +141,32 @@ export function encodeFullState(state: GameState, indexMap: IndexMap): ArrayBuff
     view.setUint8(offset, 0); offset += 1 // hasBoss = false
   }
 
+  // CTF state
+  if (state.ctf) {
+    view.setUint8(offset, 1); offset += 1 // hasCTF = true
+    view.setFloat32(offset, state.ctf.flagA.x, true); offset += 4
+    view.setFloat32(offset, state.ctf.flagA.y, true); offset += 4
+    view.setFloat32(offset, state.ctf.flagB.x, true); offset += 4
+    view.setFloat32(offset, state.ctf.flagB.y, true); offset += 4
+    view.setUint8(offset, state.ctf.scoreA); offset += 1
+    view.setUint8(offset, state.ctf.scoreB); offset += 1
+    view.setUint16(offset, state.ctf.baseA.x, true); offset += 2
+    view.setUint16(offset, state.ctf.baseA.y, true); offset += 2
+    view.setUint16(offset, state.ctf.baseA.w, true); offset += 2
+    view.setUint16(offset, state.ctf.baseA.h, true); offset += 2
+    view.setUint16(offset, state.ctf.baseB.x, true); offset += 2
+    view.setUint16(offset, state.ctf.baseB.y, true); offset += 2
+    view.setUint16(offset, state.ctf.baseB.w, true); offset += 2
+    view.setUint16(offset, state.ctf.baseB.h, true); offset += 2
+    // CTF flags byte: bit0=flagADropped, bit1=flagBDropped
+    let ctfFlags = 0
+    if (state.ctf.flagADropped) ctfFlags |= 1
+    if (state.ctf.flagBDropped) ctfFlags |= 2
+    view.setUint8(offset, ctfFlags); offset += 1
+  } else {
+    view.setUint8(offset, 0); offset += 1 // hasCTF = false
+  }
+
   return buffer
 }
 
@@ -149,10 +179,13 @@ function bossAttackTypeToNumber(attack: string): number {
 function encodeTank(view: DataView, offset: number, tank: Tank, indexMap: IndexMap): number {
   const index = indexMap.getIndex(tank.id) ?? 0xFF
 
-  // Flags: bit0=isAlive, bit1=isBot (matches decoder expectation)
+  // Flags: bit0=isAlive, bit1=isBot, bit2-3=team(00=none,01=A,10=B), bit4=hasFlag
   let flags = 0
   if (tank.isAlive) flags |= (1 << 0)
   if (tank.isBot) flags |= (1 << 1)
+  if (tank.team === 'a') flags |= (1 << 2)
+  else if (tank.team === 'b') flags |= (2 << 2)
+  if (tank.hasFlag) flags |= (1 << 4)
 
   const colorIndex = TANK_COLORS.indexOf(tank.color)
 

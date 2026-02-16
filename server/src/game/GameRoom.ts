@@ -1,6 +1,6 @@
 import {
   type GameState, type MapDefinition, type PlayerInput,
-  type LeaderboardEntry, type MapId, type Tank,
+  type LeaderboardEntry, type MapId, type Tank, type CTFState,
   GamePhase
 } from '@tank-br/shared/types.js'
 import { SpatialGrid } from '@tank-br/shared/collision.js'
@@ -16,6 +16,7 @@ import { ZoneManager } from './ZoneManager.js'
 import { PortalManager } from './PortalManager.js'
 import { BossManager } from './BossManager.js'
 import { BotController } from '../ai/BotController.js'
+import { CTFManager } from './CTFManager.js'
 import { IndexMap } from '@tank-br/shared/binary/IndexMap.js'
 import { encodeFullState } from '@tank-br/shared/binary/BinaryEncoder.js'
 
@@ -40,6 +41,7 @@ export class GameRoom {
   private zoneManager: ZoneManager
   private portalManager: PortalManager
   private bossManager: BossManager | null = null
+  private ctfManager: CTFManager | null = null
   private botController: BotController
   private indexMap: IndexMap = new IndexMap()
   private events: GameRoomEvents
@@ -74,6 +76,11 @@ export class GameRoom {
       this.bossManager = new BossManager(this.map.width, this.map.height, false)
     }
 
+    // CTF manager for Capture the Flag map
+    if (mapId === 'ctf' && this.map.flagPositionA && this.map.flagPositionB && this.map.baseA && this.map.baseB) {
+      this.ctfManager = new CTFManager(this.map.flagPositionA, this.map.flagPositionB, this.map.baseA, this.map.baseB)
+    }
+
     this.gameLoop = new GameLoop((tick, deltaMs) => this.tick(tick, deltaMs))
   }
 
@@ -82,6 +89,18 @@ export class GameRoom {
     if (this.phase === GamePhase.GameOver) return false
 
     this.playerManager.addPlayer(playerId, name, false, color)
+
+    // Assign team for CTF mode (auto-balance)
+    if (this.mapId === 'ctf') {
+      const tank = this.playerManager.getTank(playerId)
+      if (tank) {
+        const teamACnt = this.playerManager.getAllTanks().filter(t => t.team === 'a').length
+        const teamBCnt = this.playerManager.getAllTanks().filter(t => t.team === 'b').length
+        tank.team = teamACnt <= teamBCnt ? 'a' : 'b'
+        tank.color = tank.team === 'a' ? '#4488FF' : '#FF4444'
+      }
+    }
+
     try {
       this.indexMap.assign(playerId)
     } catch (e) {
@@ -106,7 +125,36 @@ export class GameRoom {
   }
 
   handleInput(playerId: string, input: PlayerInput): void {
+    // Handle shop purchases immediately
+    if (input.shopBuy) {
+      this.handleShopPurchase(playerId, input.shopBuy)
+    }
     this.playerManager.queueInput(playerId, input)
+  }
+
+  private handleShopPurchase(playerId: string, item: number): void {
+    const tank = this.playerManager.getTank(playerId)
+    if (!tank || !tank.isAlive || tank.stars < 2) return
+
+    const SHOP_COST = 2
+    const now = Date.now()
+
+    if (item === 1) {
+      // Speed boost
+      tank.stars -= SHOP_COST
+      tank.activePowerUp = 'speed' as any
+      tank.powerUpEndTime = now + 10000
+      tank.speed *= 1.5
+    } else if (item === 2) {
+      // +2 HP
+      tank.stars -= SHOP_COST
+      tank.hp = Math.min(tank.hp + 2, tank.maxHp)
+    } else if (item === 3) {
+      // x2 Damage (rocket mode)
+      tank.stars -= SHOP_COST
+      tank.activePowerUp = 'rocket' as any
+      tank.powerUpEndTime = now + 10000
+    }
   }
 
   private startGame(): void {
@@ -131,6 +179,14 @@ export class GameRoom {
       for (let i = 0; i < botCount; i++) {
         const botId = `bot_${i}`
         this.playerManager.addPlayer(botId, `Bot ${i + 1}`, true)
+        // Assign CTF teams to bots (alternate)
+        if (this.mapId === 'ctf') {
+          const bot = this.playerManager.getTank(botId)
+          if (bot) {
+            bot.team = i % 2 === 0 ? 'a' : 'b'
+            bot.color = bot.team === 'a' ? '#4488FF' : '#FF4444'
+          }
+        }
         // Register bot in IndexMap so metadata is sent to clients
         try {
           this.indexMap.assign(botId)
@@ -269,6 +325,11 @@ export class GameRoom {
             this.starManager.dropStarsAtPosition(dead.position, 30)
           }
 
+          // CTF: drop flag if carrier is killed
+          if (dead && this.ctfManager) {
+            this.ctfManager.onTankKilled(hit.targetId, dead.position)
+          }
+
           if (dead && this.phase !== GamePhase.GameOver) {
             const targetId = hit.targetId
             // Boss does not respawn
@@ -280,6 +341,11 @@ export class GameRoom {
           }
         }
       }
+    }
+
+    // 3b. CTF flag logic
+    if (this.ctfManager) {
+      this.ctfManager.update(this.playerManager.getAliveTanks())
     }
 
     // 4. Update stars
@@ -339,6 +405,8 @@ export class GameRoom {
     for (const target of allTanks) {
       if (!target.isAlive || target.id === bot.id) continue
       if (target.isBot && bot.isBot) continue
+      // Don't shoot teammates in CTF
+      if (bot.team && target.team === bot.team) continue
 
       const dx = target.position.x - bot.position.x
       const dy = target.position.y - bot.position.y
@@ -381,6 +449,7 @@ export class GameRoom {
       portals: this.portalManager.getPortals(),
       zone: this.zoneManager.getZone(),
       boss: null,  // Boss is now a regular tank, not a separate entity
+      ctf: this.ctfManager ? this.ctfManager.getState() : null,
       leaderboard,
       playersAlive: this.playerManager.aliveCount,
       timeElapsed

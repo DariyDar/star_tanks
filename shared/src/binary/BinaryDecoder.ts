@@ -232,6 +232,42 @@ export class BinaryDecoder {
       }
     }
 
+    // Decode CTF state (if present and buffer has remaining data)
+    let ctf = null
+    if (this.offset < this.view.byteLength) {
+      const hasCTF = this.readUint8()
+      if (hasCTF) {
+        const flagAx = this.readFloat32()
+        const flagAy = this.readFloat32()
+        const flagBx = this.readFloat32()
+        const flagBy = this.readFloat32()
+        const scoreA = this.readUint8()
+        const scoreB = this.readUint8()
+        const baseAx = this.readUint16()
+        const baseAy = this.readUint16()
+        const baseAw = this.readUint16()
+        const baseAh = this.readUint16()
+        const baseBx = this.readUint16()
+        const baseBy = this.readUint16()
+        const baseBw = this.readUint16()
+        const baseBh = this.readUint16()
+        const ctfFlags = this.readUint8()
+
+        ctf = {
+          flagA: { x: flagAx, y: flagAy },
+          flagB: { x: flagBx, y: flagBy },
+          flagACarrier: null,
+          flagBCarrier: null,
+          flagADropped: (ctfFlags & 1) !== 0,
+          flagBDropped: (ctfFlags & 2) !== 0,
+          scoreA,
+          scoreB,
+          baseA: { x: baseAx, y: baseAy, w: baseAw, h: baseAh },
+          baseB: { x: baseBx, y: baseBy, w: baseBw, h: baseBh }
+        }
+      }
+    }
+
     return {
       tick,
       timestamp,
@@ -243,6 +279,7 @@ export class BinaryDecoder {
       portals,
       zone,
       boss,
+      ctf,
       leaderboard,
       playersAlive,
       timeElapsed
@@ -286,6 +323,9 @@ export class BinaryDecoder {
 
     const isAlive = (flags & 0x01) !== 0
     const isBot = (flags & 0x02) !== 0
+    const teamBits = (flags >> 2) & 0x03
+    const team = teamBits === 1 ? 'a' as const : teamBits === 2 ? 'b' as const : undefined
+    const hasFlag = (flags & 0x10) !== 0
 
     let activePowerUp: PowerUpType | null = null
     if (powerUpEndTime > 0) {
@@ -319,7 +359,9 @@ export class BinaryDecoder {
       tankRadius,
       lastDamageTime: 0,
       quicksandSlowEndTime: 0,
-      inBush: false
+      inBush: false,
+      team,
+      hasFlag: hasFlag || undefined
     }
   }
 

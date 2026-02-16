@@ -72,6 +72,8 @@ export interface Tank {
   lastDamageTime: number // Время последнего урона (для авто-регенерации)
   quicksandSlowEndTime: number // Время окончания замедления от зыбучих песков
   inBush: boolean       // Находится ли танк в кустах (для скрытности)
+  team?: 'a' | 'b'      // Team assignment for CTF mode
+  hasFlag?: boolean      // Whether tank is carrying the enemy flag
 }
 
 export interface Bullet {
@@ -146,9 +148,28 @@ export interface MapDefinition {
   obstacles: Obstacle[]
   spawnPoints: Vec2[]
   starPositions: Vec2[]
+  spawnPointsA?: Vec2[]   // Team A spawn points (CTF)
+  spawnPointsB?: Vec2[]   // Team B spawn points (CTF)
+  flagPositionA?: Vec2    // Team A flag location (CTF)
+  flagPositionB?: Vec2    // Team B flag location (CTF)
+  baseA?: { x: number; y: number; w: number; h: number }  // Team A base rect (CTF)
+  baseB?: { x: number; y: number; w: number; h: number }  // Team B base rect (CTF)
 }
 
-export type MapId = 'lakes' | 'megapolis' | 'village'
+export type MapId = 'lakes' | 'megapolis' | 'village' | 'ctf'
+
+export interface CTFState {
+  flagA: Vec2           // Team A's flag position
+  flagB: Vec2           // Team B's flag position
+  flagACarrier: string | null  // Who carries team A's flag
+  flagBCarrier: string | null  // Who carries team B's flag
+  flagADropped: boolean  // Is flag A dropped on ground (not at base)
+  flagBDropped: boolean  // Is flag B dropped on ground (not at base)
+  scoreA: number
+  scoreB: number
+  baseA: { x: number; y: number; w: number; h: number }
+  baseB: { x: number; y: number; w: number; h: number }
+}
 
 export interface GameState {
   tick: number
@@ -161,6 +182,7 @@ export interface GameState {
   portals: Portal[]
   zone: Zone
   boss: Boss | null
+  ctf: CTFState | null
   leaderboard: LeaderboardEntry[]
   playersAlive: number
   timeElapsed: number
@@ -180,6 +202,7 @@ export interface PlayerInput {
   moveAngle: number | null   // null = standing still
   aimAngle: number            // turret direction in radians
   fire: boolean               // Whether player wants to fire this tick
+  shopBuy?: number            // 1=speed, 2=hp, 3=x2damage (costs 2 stars each)
 }
 
 export interface RoomInfo {

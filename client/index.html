@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Tank Battle Royale</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,6 +17,10 @@
     }
     canvas {
       image-rendering: pixelated;
+    }
+    /* Safe area for notched devices */
+    body {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
   </style>
 </head>

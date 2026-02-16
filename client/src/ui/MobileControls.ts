@@ -128,7 +128,7 @@ export class MobileControls {
     }
 
     const angle = Math.atan2(dx, -dy)
-    const fire = normalizedDist > FIRE_THRESHOLD
+    const fire = true  // Always fire when aiming on mobile
     this.inputManager.setMobileAim(angle, fire)
   }
 
