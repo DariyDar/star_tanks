@@ -49,12 +49,34 @@ interface TankTrail {
   duration: number
 }
 
+interface BrickDebris {
+  x: number
+  y: number
+  startTime: number
+  duration: number
+  particles: Array<{
+    angle: number
+    speed: number
+    size: number
+    rotSpeed: number
+  }>
+}
+
+interface StarCollectEffect {
+  x: number
+  y: number
+  startTime: number
+  duration: number
+}
+
 export class EffectsRenderer {
   private explosions: Explosion[] = []
   private bulletImpacts: BulletImpact[] = []
   private muzzleFlashes: MuzzleFlash[] = []
   private smokeParticles: SmokeParticle[] = []
   private tankTrails: TankTrail[] = []
+  private brickDebris: BrickDebris[] = []
+  private starCollects: StarCollectEffect[] = []
   private fadeStartTime = 0
   private fadeColor: 'white' | 'black' | null = null
   private fadeDuration = PORTAL_EXIT_FADE_DURATION
@@ -109,13 +131,18 @@ export class EffectsRenderer {
     }
   }
 
-  addBulletImpact(x: number, y: number): void {
+  addBulletImpact(x: number, y: number, isBrick = false): void {
     this.bulletImpacts.push({
       x, y,
       startTime: Date.now(),
       duration: 300
     })
     this.addScreenShake(2)
+
+    // Brick debris if hitting obstacle
+    if (isBrick) {
+      this.addBrickDebris(x, y)
+    }
 
     // Add small smoke puff
     for (let i = 0; i < 3; i++) {
@@ -169,6 +196,25 @@ export class EffectsRenderer {
     if (this.tankTrails.length > 100) {
       this.tankTrails.shift()
     }
+  }
+
+  addBrickDebris(x: number, y: number): void {
+    const particles: BrickDebris['particles'] = []
+    for (let i = 0; i < 8; i++) {
+      particles.push({
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.05 + Math.random() * 0.1,
+        size: 0.05 + Math.random() * 0.08,
+        rotSpeed: (Math.random() - 0.5) * 10
+      })
+    }
+    this.brickDebris.push({ x, y, startTime: Date.now(), duration: 600, particles })
+    if (this.brickDebris.length > 30) this.brickDebris.shift()
+  }
+
+  addStarCollect(x: number, y: number): void {
+    this.starCollects.push({ x, y, startTime: Date.now(), duration: 800 })
+    if (this.starCollects.length > 20) this.starCollects.shift()
   }
 
   addScreenShake(intensity: number): void {
@@ -329,6 +375,90 @@ export class EffectsRenderer {
           ctx.arc(sparkX, sparkY, sparkR, 0, Math.PI * 2)
           ctx.fill()
         }
+      }
+    }
+  }
+
+  renderBrickDebris(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.brickDebris = this.brickDebris.filter(d => now - d.startTime < d.duration)
+
+    for (const debris of this.brickDebris) {
+      const t = (now - debris.startTime) / debris.duration
+      const { sx, sy } = camera.worldToScreen(debris.x, debris.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      for (const p of debris.particles) {
+        const dist = p.speed * cellPx * 4 * t
+        const px = cx + Math.cos(p.angle) * dist
+        const py = cy + Math.sin(p.angle) * dist + cellPx * 0.3 * t * t // gravity
+        const alpha = (1 - t) * 0.9
+        const size = p.size * cellPx * (1 - t * 0.3)
+
+        ctx.save()
+        ctx.translate(px, py)
+        ctx.rotate(p.rotSpeed * t)
+        ctx.fillStyle = `rgba(180, 75, 40, ${alpha})`
+        ctx.fillRect(-size / 2, -size / 2, size, size)
+        // Highlight edge
+        ctx.fillStyle = `rgba(220, 120, 70, ${alpha * 0.6})`
+        ctx.fillRect(-size / 2, -size / 2, size * 0.4, size * 0.4)
+        ctx.restore()
+      }
+    }
+  }
+
+  renderStarCollects(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const now = Date.now()
+    this.starCollects = this.starCollects.filter(s => now - s.startTime < s.duration)
+
+    for (const effect of this.starCollects) {
+      const t = (now - effect.startTime) / effect.duration
+      const { sx, sy } = camera.worldToScreen(effect.x, effect.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      // Rising "+1" text
+      const textY = cy - t * cellPx * 1.5
+      const alpha = t < 0.3 ? t / 0.3 : (1 - (t - 0.3) / 0.7)
+      ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`
+      ctx.font = `bold ${cellPx * 0.5}px Arial`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 10
+      ctx.fillText('+1', cx, textY)
+      ctx.shadowBlur = 0
+
+      // Sparkle ring expanding outward
+      if (t < 0.5) {
+        const sparkT = t / 0.5
+        const sparkR = cellPx * 0.5 * (1 + sparkT)
+        const sparkAlpha = (1 - sparkT) * 0.7
+        const sparkCount = 8
+        for (let i = 0; i < sparkCount; i++) {
+          const angle = (i / sparkCount) * Math.PI * 2 + t * 6
+          const px = cx + Math.cos(angle) * sparkR
+          const py = cy + Math.sin(angle) * sparkR
+          ctx.fillStyle = `rgba(255, 255, 200, ${sparkAlpha})`
+          ctx.beginPath()
+          ctx.arc(px, py, 2 * (1 - sparkT), 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      // Golden flash
+      if (t < 0.2) {
+        const flashAlpha = (1 - t / 0.2) * 0.5
+        const flashR = cellPx * 0.8 * (1 + t * 3)
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashR)
+        grad.addColorStop(0, `rgba(255, 215, 0, ${flashAlpha})`)
+        grad.addColorStop(1, 'rgba(255, 215, 0, 0)')
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(cx, cy, flashR, 0, Math.PI * 2)
+        ctx.fill()
       }
     }
   }
@@ -524,15 +654,19 @@ export class EffectsRenderer {
     ctx: CanvasRenderingContext2D,
     myPos: { x: number; y: number },
     portalPos: { x: number; y: number },
-    canvasSize: number
+    canvasW: number,
+    canvasH?: number
   ): void {
+    const h = canvasH ?? canvasW
     const dx = portalPos.x - myPos.x
     const dy = portalPos.y - myPos.y
     const angle = Math.atan2(dy, dx)
 
-    const arrowDist = canvasSize / 2 - 30
-    const arrowX = canvasSize / 2 + Math.cos(angle) * arrowDist
-    const arrowY = canvasSize / 2 + Math.sin(angle) * arrowDist
+    const arrowDistX = canvasW / 2 - 30
+    const arrowDistY = h / 2 - 30
+    const arrowDist = Math.min(arrowDistX, arrowDistY)
+    const arrowX = canvasW / 2 + Math.cos(angle) * arrowDist
+    const arrowY = h / 2 + Math.sin(angle) * arrowDist
 
     ctx.save()
     ctx.translate(arrowX, arrowY)
@@ -555,6 +689,8 @@ export class EffectsRenderer {
     this.muzzleFlashes = []
     this.smokeParticles = []
     this.tankTrails = []
+    this.brickDebris = []
+    this.starCollects = []
     this.fadeColor = null
     this.shakeIntensity = 0
     this.shakeOffsetX = 0

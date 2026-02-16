@@ -1,8 +1,9 @@
-import { VIEWPORT_CELLS, CELL_SIZE } from '@shared/constants.js'
+import { VIEWPORT_CELLS, BULLET_RANGE } from '@shared/constants.js'
+import { PowerUpType, type Tank } from '@shared/types.js'
 import type { Bullet } from '@shared/types.js'
 import type { GameClient } from '../game/GameClient.js'
 import { MapRenderer } from './MapRenderer.js'
-import { TankRenderer } from './TankRenderer.js'
+import { TankRenderer, type TankColors } from './TankRenderer.js'
 import { BulletRenderer } from './BulletRenderer.js'
 import { HudRenderer } from './HudRenderer.js'
 import { MinimapRenderer } from './MinimapRenderer.js'
@@ -19,7 +20,7 @@ export class Renderer {
   private minimapRenderer = new MinimapRenderer()
   private zoneRenderer = new ZoneRenderer()
   readonly effects = new EffectsRenderer()
-  private cellPx = CELL_SIZE
+  private cellPx = 24
   private mapLoaded = false
 
   // Track previous bullets to detect impacts
@@ -28,6 +29,8 @@ export class Renderer {
   private prevTankPositions = new Map<string, { x: number; y: number }>()
   // Track bullets to detect new shots
   private prevBullets: Map<string, Bullet> = new Map()
+  // Track stars to detect collection
+  private prevActiveStars = new Set<string>()
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -37,10 +40,14 @@ export class Renderer {
   }
 
   private resize(): void {
-    const size = Math.min(window.innerWidth, window.innerHeight)
-    this.canvas.width = size
-    this.canvas.height = size
-    this.cellPx = size / VIEWPORT_CELLS
+    this.canvas.width = window.innerWidth
+    this.canvas.height = window.innerHeight
+    // Cell size based on shorter dimension so we see VIEWPORT_CELLS in that axis
+    this.cellPx = Math.min(window.innerWidth, window.innerHeight) / VIEWPORT_CELLS
+  }
+
+  setCustomTankColors(colors: TankColors | null): void {
+    this.tankRenderer.customColors = colors
   }
 
   loadMap(client: GameClient): void {
@@ -56,6 +63,9 @@ export class Renderer {
       this.renderLoading()
       return
     }
+
+    // Update camera viewport for non-square canvas
+    camera.setViewport(this.canvas.width, this.canvas.height, cellPx)
 
     // Detect bullet impacts (bullets that disappeared since last frame)
     this.detectBulletImpacts(state.bullets)
@@ -91,6 +101,21 @@ export class Renderer {
     // Tank trails (drawn first, under everything)
     this.effects.renderTankTrails(ctx, camera, cellPx)
 
+    // Detect star collections (active → inactive = collected)
+    const currentActiveStars = new Set<string>()
+    for (const star of state.stars) {
+      if (star.active) {
+        currentActiveStars.add(star.id)
+        if (!this.prevActiveStars.has(star.id) && this.prevActiveStars.size > 0) {
+          // Star appeared (respawned) — no effect needed
+        }
+      } else if (this.prevActiveStars.has(star.id)) {
+        // Star was active, now inactive = collected
+        this.effects.addStarCollect(star.position.x, star.position.y)
+      }
+    }
+    this.prevActiveStars = currentActiveStars
+
     // Stars
     this.renderStars(ctx, state, camera, cellPx)
 
@@ -103,9 +128,13 @@ export class Renderer {
     // Bullets
     this.bulletRenderer.render(ctx, state.bullets, camera, cellPx)
 
-    // Bullet impacts and smoke
+    // Bullet impacts, brick debris, and smoke
     this.effects.renderBulletImpacts(ctx, camera, cellPx)
+    this.effects.renderBrickDebris(ctx, camera, cellPx)
     this.effects.renderSmokeParticles(ctx, camera, cellPx)
+
+    // Star collection effects
+    this.effects.renderStarCollects(ctx, camera, cellPx)
 
     // Tanks — use predicted position/angles for my tank
     const displayTanks = state.tanks.map(t => {
@@ -168,7 +197,13 @@ export class Renderer {
       return false
     })
 
+    // Optical sight laser lines (under tanks, above map)
+    this.renderOpticalSights(ctx, visibleTanks, camera, cellPx)
+
     this.tankRenderer.render(ctx, visibleTanks, camera, cellPx, playerId)
+
+    // Bushes on TOP of tanks (so tanks can hide in them)
+    this.mapRenderer.renderBushes(ctx, camera, cellPx)
 
     // Muzzle flashes (on top of tanks)
     this.effects.renderMuzzleFlashes(ctx, camera, cellPx)
@@ -200,7 +235,7 @@ export class Renderer {
           const d = dx * dx + dy * dy
           if (d < minDist) { minDist = d; nearest = p }
         }
-        this.effects.renderPortalArrow(ctx, myPos, nearest.position, this.canvas.width)
+        this.effects.renderPortalArrow(ctx, myPos, nearest.position, this.canvas.width, this.canvas.height)
       }
     }
 
@@ -328,7 +363,9 @@ export class Renderer {
       speed: '#44FF44',
       shield: '#4488FF',
       magnet: '#FFD700',
-      heal: '#FF66FF'
+      heal: '#FF66FF',
+      opticalSight: '#FF2222',
+      rocket: '#FF6600'
     }
 
     for (const pu of state.powerUps) {
@@ -417,13 +454,74 @@ export class Renderer {
           ctx.fillRect(cx + iconSize * 0.4, cy - iconSize * 0.15, iconSize * 0.25, iconSize * 0.5)
           break
 
-        case 'heal':
+        case 'heal': {
           // Medical cross
           ctx.fillStyle = colors[pu.type] ?? '#FFF'
           const crossW = iconSize * 0.3
           const crossL = iconSize * 0.9
           ctx.fillRect(cx - crossW / 2, cy - crossL / 2, crossW, crossL)
           ctx.fillRect(cx - crossL / 2, cy - crossW / 2, crossL, crossW)
+          break
+        }
+
+        case 'opticalSight':
+          // Crosshair / scope icon
+          ctx.strokeStyle = '#FF2222'
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.arc(cx, cy, iconSize * 0.5, 0, Math.PI * 2)
+          ctx.stroke()
+          // Cross lines
+          ctx.beginPath()
+          ctx.moveTo(cx - iconSize * 0.8, cy)
+          ctx.lineTo(cx + iconSize * 0.8, cy)
+          ctx.moveTo(cx, cy - iconSize * 0.8)
+          ctx.lineTo(cx, cy + iconSize * 0.8)
+          ctx.stroke()
+          // Center dot
+          ctx.fillStyle = '#FF2222'
+          ctx.beginPath()
+          ctx.arc(cx, cy, iconSize * 0.1, 0, Math.PI * 2)
+          ctx.fill()
+          break
+
+        case 'rocket':
+          // Rocket icon
+          ctx.fillStyle = '#FF6600'
+          ctx.save()
+          ctx.translate(cx, cy)
+          // Rocket body
+          ctx.beginPath()
+          ctx.ellipse(0, 0, iconSize * 0.25, iconSize * 0.7, 0, 0, Math.PI * 2)
+          ctx.fill()
+          // Nose cone
+          ctx.fillStyle = '#FF4400'
+          ctx.beginPath()
+          ctx.moveTo(-iconSize * 0.2, -iconSize * 0.6)
+          ctx.lineTo(0, -iconSize * 0.95)
+          ctx.lineTo(iconSize * 0.2, -iconSize * 0.6)
+          ctx.closePath()
+          ctx.fill()
+          // Fins
+          ctx.fillStyle = '#CC3300'
+          ctx.beginPath()
+          ctx.moveTo(-iconSize * 0.2, iconSize * 0.5)
+          ctx.lineTo(-iconSize * 0.5, iconSize * 0.8)
+          ctx.lineTo(-iconSize * 0.15, iconSize * 0.3)
+          ctx.closePath()
+          ctx.fill()
+          ctx.beginPath()
+          ctx.moveTo(iconSize * 0.2, iconSize * 0.5)
+          ctx.lineTo(iconSize * 0.5, iconSize * 0.8)
+          ctx.lineTo(iconSize * 0.15, iconSize * 0.3)
+          ctx.closePath()
+          ctx.fill()
+          // Exhaust
+          ctx.fillStyle = 'rgba(255,200,50,0.7)'
+          ctx.beginPath()
+          ctx.arc(0, iconSize * 0.7, iconSize * 0.15, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.restore()
           break
       }
 
@@ -435,6 +533,57 @@ export class Renderer {
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.stroke()
       ctx.globalAlpha = 1.0
+    }
+  }
+
+  private renderOpticalSights(
+    ctx: CanvasRenderingContext2D,
+    tanks: Tank[],
+    camera: import('../game/Camera.js').Camera,
+    cellPx: number
+  ): void {
+    for (const tank of tanks) {
+      if (!tank.isAlive) continue
+      if (tank.activePowerUp !== PowerUpType.OpticalSight) continue
+      if (!camera.isVisible(tank.position.x, tank.position.y)) continue
+
+      const { sx, sy } = camera.worldToScreen(tank.position.x, tank.position.y, cellPx)
+      const cx = sx + cellPx / 2
+      const cy = sy + cellPx / 2
+
+      // Laser line from barrel tip to bullet range
+      const barrelLength = tank.tankRadius * 1.2 * cellPx
+      const laserLength = BULLET_RANGE * cellPx
+
+      const startX = cx + Math.sin(tank.turretAngle) * barrelLength
+      const startY = cy - Math.cos(tank.turretAngle) * barrelLength
+      const endX = cx + Math.sin(tank.turretAngle) * laserLength
+      const endY = cy - Math.cos(tank.turretAngle) * laserLength
+
+      // Outer glow
+      ctx.save()
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.15)'
+      ctx.lineWidth = 4
+      ctx.beginPath()
+      ctx.moveTo(startX, startY)
+      ctx.lineTo(endX, endY)
+      ctx.stroke()
+
+      // Main laser line (thin, bright red)
+      ctx.strokeStyle = 'rgba(255, 30, 30, 0.7)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(startX, startY)
+      ctx.lineTo(endX, endY)
+      ctx.stroke()
+
+      // Dot at end
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'
+      ctx.beginPath()
+      ctx.arc(endX, endY, 3, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.restore()
     }
   }
 

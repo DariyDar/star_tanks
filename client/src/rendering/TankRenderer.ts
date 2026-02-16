@@ -4,10 +4,20 @@ import type { Camera } from '../game/Camera.js'
 const HULL_ROTATION_SPEED = 12 // radians per second
 const TURRET_ROTATION_SPEED = 16
 
+export interface TankColors {
+  treads: string
+  body: string
+  turret: string
+  barrel: string
+}
+
 export class TankRenderer {
   private hullAngles = new Map<string, number>()
   private turretAngles = new Map<string, number>()
   private lastTime = performance.now()
+
+  /** Custom 4-part color palette for the local player */
+  customColors: TankColors | null = null
 
   render(ctx: CanvasRenderingContext2D, tanks: Tank[], camera: Camera, cellPx: number, myId: string): void {
     const now = performance.now()
@@ -30,6 +40,11 @@ export class TankRenderer {
       // Scale size based on tankRadius (grows with stars)
       const s = cellPx * tank.tankRadius
 
+      // Resolve 4-part colors: custom for local player, derived for others
+      const colors = (tank.id === myId && this.customColors)
+        ? this.customColors
+        : deriveTankColors(tank.color)
+
       // Shadow under tank (2.5D effect)
       ctx.save()
       ctx.globalAlpha = 0.3
@@ -47,10 +62,10 @@ export class TankRenderer {
 
       // Treads with depth and gradient
       const treadGradient = ctx.createLinearGradient(-s, -s, -s, s)
-      treadGradient.addColorStop(0, shadeColor(tank.color, -80))
-      treadGradient.addColorStop(0.3, shadeColor(tank.color, -60))
-      treadGradient.addColorStop(0.7, shadeColor(tank.color, -70))
-      treadGradient.addColorStop(1, shadeColor(tank.color, -90))
+      treadGradient.addColorStop(0, shadeColor(colors.treads, -40))
+      treadGradient.addColorStop(0.3, colors.treads)
+      treadGradient.addColorStop(0.7, shadeColor(colors.treads, -10))
+      treadGradient.addColorStop(1, shadeColor(colors.treads, -50))
 
       // Left tread with 3D depth
       ctx.fillStyle = treadGradient
@@ -66,14 +81,12 @@ export class TankRenderer {
       ctx.fillRect(s * 0.7, -s, s * 0.1, s * 2)
 
       // Tread details (rivets and tracks)
-      ctx.fillStyle = shadeColor(tank.color, -100)
+      ctx.fillStyle = shadeColor(colors.treads, -60)
       for (let i = 0; i < 6; i++) {
         const ty = -s + (i / 5) * (s * 2)
-        // Left tread rivets
         ctx.beginPath()
         ctx.arc(-s * 0.87, ty, s * 0.05, 0, Math.PI * 2)
         ctx.fill()
-        // Right tread rivets
         ctx.beginPath()
         ctx.arc(s * 0.87, ty, s * 0.05, 0, Math.PI * 2)
         ctx.fill()
@@ -81,22 +94,22 @@ export class TankRenderer {
 
       // Hull body with metallic gradient
       const hullGradient = ctx.createLinearGradient(-s * 0.65, -s * 0.8, s * 0.65, s * 0.8)
-      hullGradient.addColorStop(0, shadeColor(tank.color, -20))
-      hullGradient.addColorStop(0.3, tank.color)
-      hullGradient.addColorStop(0.5, shadeColor(tank.color, 20))
-      hullGradient.addColorStop(0.7, tank.color)
-      hullGradient.addColorStop(1, shadeColor(tank.color, -10))
+      hullGradient.addColorStop(0, shadeColor(colors.body, -20))
+      hullGradient.addColorStop(0.3, colors.body)
+      hullGradient.addColorStop(0.5, shadeColor(colors.body, 20))
+      hullGradient.addColorStop(0.7, colors.body)
+      hullGradient.addColorStop(1, shadeColor(colors.body, -10))
 
       ctx.fillStyle = hullGradient
       ctx.fillRect(-s * 0.65, -s * 0.8, s * 1.3, s * 1.6)
 
       // Hull edge highlight (3D effect)
-      ctx.strokeStyle = shadeColor(tank.color, 40)
+      ctx.strokeStyle = shadeColor(colors.body, 40)
       ctx.lineWidth = 2
       ctx.strokeRect(-s * 0.65, -s * 0.8, s * 1.3, s * 1.6)
 
       // Hull panels/details
-      ctx.strokeStyle = shadeColor(tank.color, -30)
+      ctx.strokeStyle = shadeColor(colors.body, -30)
       ctx.lineWidth = 1
       ctx.strokeRect(-s * 0.5, -s * 0.65, s, s * 1.3)
 
@@ -115,9 +128,9 @@ export class TankRenderer {
 
       // Turret dome with radial gradient (3D sphere effect)
       const turretGradient = ctx.createRadialGradient(-s * 0.15, -s * 0.15, 0, 0, 0, s * 0.4)
-      turretGradient.addColorStop(0, shadeColor(tank.color, 30))
-      turretGradient.addColorStop(0.5, shadeColor(tank.color, -10))
-      turretGradient.addColorStop(1, shadeColor(tank.color, -40))
+      turretGradient.addColorStop(0, shadeColor(colors.turret, 30))
+      turretGradient.addColorStop(0.5, shadeColor(colors.turret, -10))
+      turretGradient.addColorStop(1, shadeColor(colors.turret, -40))
 
       ctx.fillStyle = turretGradient
       ctx.beginPath()
@@ -132,9 +145,9 @@ export class TankRenderer {
 
       // Gun barrel with 3D depth
       const barrelGradient = ctx.createLinearGradient(-s * 0.12, 0, s * 0.12, 0)
-      barrelGradient.addColorStop(0, shadeColor(tank.color, -80))
-      barrelGradient.addColorStop(0.5, shadeColor(tank.color, -50))
-      barrelGradient.addColorStop(1, shadeColor(tank.color, -70))
+      barrelGradient.addColorStop(0, shadeColor(colors.barrel, -40))
+      barrelGradient.addColorStop(0.5, colors.barrel)
+      barrelGradient.addColorStop(1, shadeColor(colors.barrel, -30))
 
       ctx.fillStyle = barrelGradient
       ctx.fillRect(-s * 0.1, -s * 1.2, s * 0.2, s * 0.8)
@@ -144,7 +157,7 @@ export class TankRenderer {
       ctx.fillRect(-s * 0.1, -s * 1.2, s * 0.2, s * 0.1)
 
       // Barrel highlight
-      ctx.fillStyle = shadeColor(tank.color, -30)
+      ctx.fillStyle = shadeColor(colors.barrel, 20)
       ctx.fillRect(-s * 0.08, -s * 1.15, s * 0.03, s * 0.65)
 
       ctx.restore()
@@ -208,10 +221,33 @@ export class TankRenderer {
   }
 }
 
+/** Derive 4-part colors from a single base color */
+function deriveTankColors(baseColor: string): TankColors {
+  return {
+    treads: shadeColor(baseColor, -60),
+    body: baseColor,
+    turret: shadeColor(baseColor, -10),
+    barrel: shadeColor(baseColor, -50)
+  }
+}
+
 function shadeColor(color: string, amount: number): string {
+  // Handle rgb() format
+  const rgbMatch = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+  if (rgbMatch) {
+    const r = Math.max(0, Math.min(255, parseInt(rgbMatch[1]) + amount))
+    const g = Math.max(0, Math.min(255, parseInt(rgbMatch[2]) + amount))
+    const b = Math.max(0, Math.min(255, parseInt(rgbMatch[3]) + amount))
+    return `rgb(${r},${g},${b})`
+  }
+
+  // Handle hex format
   const num = parseInt(color.slice(1), 16)
   const r = Math.max(0, Math.min(255, ((num >> 16) & 0xFF) + amount))
   const g = Math.max(0, Math.min(255, ((num >> 8) & 0xFF) + amount))
   const b = Math.max(0, Math.min(255, (num & 0xFF) + amount))
   return `rgb(${r},${g},${b})`
 }
+
+/** Export for use in lobby preview */
+export { shadeColor, deriveTankColors }

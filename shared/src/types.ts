@@ -18,7 +18,9 @@ export enum PowerUpType {
   Speed = 'speed',
   Shield = 'shield',
   Magnet = 'magnet',
-  Heal = 'heal'
+  Heal = 'heal',
+  OpticalSight = 'opticalSight',
+  Rocket = 'rocket'
 }
 
 export enum BossAttackType {
@@ -78,6 +80,7 @@ export interface Bullet {
   position: Vec2
   angle: number          // radians, bullet travel direction
   distanceTraveled: number
+  isRocket: boolean      // Rocket bullets are bigger and deal 2x damage
 }
 
 export interface Star {

@@ -198,7 +198,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -225,7 +226,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: baseAngle + spread,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -245,7 +247,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -269,7 +272,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -287,7 +291,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -309,7 +314,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x, y },
         angle: angle,
-        distanceTraveled: 100 // High value so they expire quickly if not hit
+        distanceTraveled: 100, // High value so they expire quickly if not hit
+        isRocket: false
       })
     }
 
@@ -329,7 +335,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -347,7 +354,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -372,7 +380,8 @@ export class BossManager {
         ownerId: 'boss_1',
         position: { x: pos.x, y: pos.y },
         angle: angle,
-        distanceTraveled: 0
+        distanceTraveled: 0,
+        isRocket: false
       })
     }
 
@@ -433,7 +442,6 @@ export class BossManager {
         x: bossPos.x + offsetX,
         y: bossPos.y + offsetY
       },
-      active: true,
       spawnedAt: Date.now()
     }
   }

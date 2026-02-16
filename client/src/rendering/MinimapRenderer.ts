@@ -1,6 +1,5 @@
 import type { GameState, Tank } from '@shared/types.js'
 import type { Camera } from '../game/Camera.js'
-import { VIEWPORT_CELLS } from '@shared/constants.js'
 
 const MINIMAP_SIZE = 150
 const MINIMAP_PADDING = 10
@@ -100,8 +99,8 @@ export class MinimapRenderer {
     ctx.strokeRect(
       mx + camera.x * scaleX,
       my + camera.y * scaleY,
-      VIEWPORT_CELLS * scaleX,
-      VIEWPORT_CELLS * scaleY
+      camera.viewportW * scaleX,
+      camera.viewportH * scaleY
     )
   }
 }

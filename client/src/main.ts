@@ -20,6 +20,20 @@ const resultScreen = new ResultScreen(canvas)
 const mobileControls = new MobileControls(canvas, input)
 const lobby = new LobbyScreen(canvas)
 
+// Exit button (DOM element)
+const exitBtn = document.createElement('button')
+exitBtn.textContent = 'EXIT'
+exitBtn.style.cssText = `
+  position: fixed; top: 12px; right: 170px; z-index: 5;
+  padding: 6px 16px; font-size: 13px; font-weight: bold;
+  background: rgba(255, 50, 50, 0.7); color: #FFF;
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+  cursor: pointer; display: none; font-family: Arial, sans-serif;
+`
+exitBtn.addEventListener('mouseenter', () => { exitBtn.style.background = 'rgba(255, 50, 50, 0.9)' })
+exitBtn.addEventListener('mouseleave', () => { exitBtn.style.background = 'rgba(255, 50, 50, 0.7)' })
+document.body.appendChild(exitBtn)
+
 let sequenceNumber = 0
 let joined = false
 let lastPlayerName = 'Player'
@@ -42,17 +56,38 @@ function joinGame(name: string, mapId: string, color: string) {
   sequenceNumber = 0
   joined = false
 
+  // Apply custom tank colors from lobby to renderer
+  renderer.setCustomTankColors(lobby.customTankColors)
+
   if (socket.connected) {
     socket.join(name, mapId, color)
   }
 }
 
 function showLobby() {
+  exitBtn.style.display = 'none'
   lobby.show((name, mapId, color) => {
     lastError = null  // Clear error when attempting to join
     joinGame(name, mapId, color)
   }, accountStars ?? undefined, lastError ?? undefined)
 }
+
+function handleExit() {
+  if (!joined) return
+  const myTank = client.getMyTank()
+  if (myTank && myTank.isAlive) {
+    renderer.effects.addExplosion(myTank.position.x, myTank.position.y)
+  }
+  socket.leave()
+  joined = false
+  exitBtn.style.display = 'none'
+  renderer.effects.startFade('black')
+  setTimeout(() => {
+    resultScreen.show(0, lastLeaderboard, () => showLobby())
+  }, 1500)
+}
+
+exitBtn.addEventListener('click', handleExit)
 
 const socket = new SocketClient({
   onJoined(payload) {
@@ -63,6 +98,7 @@ const socket = new SocketClient({
     renderer.effects.reset()
     resultScreen.hide()
     lobby.hide()
+    exitBtn.style.display = 'block'
     canvas.focus() // Return keyboard focus to game
     joined = true
 
@@ -87,6 +123,7 @@ const socket = new SocketClient({
 
   onPortalExit(payload) {
     if (payload.playerId === client.playerId) {
+      exitBtn.style.display = 'none'
       // Update account stars with new balance
       if (payload.newAccountBalance !== undefined) {
         accountStars = payload.newAccountBalance
@@ -104,6 +141,7 @@ const socket = new SocketClient({
   },
 
   onGameOver(payload) {
+    exitBtn.style.display = 'none'
     const myEntry = payload.leaderboard.find(e => e.id === client.playerId)
     const stars = myEntry?.stars ?? 0
     const fadeColor = stars > 0 ? 'white' as const : 'black' as const
@@ -126,6 +164,7 @@ const socket = new SocketClient({
 
   onDisconnect() {
     joined = false
+    exitBtn.style.display = 'none'
   }
 })
 

@@ -43,6 +43,7 @@ export class BulletManager {
     tank.lastFireTime = now
 
     const vec = angleToVec(tank.turretAngle)
+    const isRocket = tank.activePowerUp === PowerUpType.Rocket
     const bullet: Bullet = {
       id: `b_${bulletIdCounter++}`,
       ownerId: tank.id,
@@ -51,7 +52,8 @@ export class BulletManager {
         y: tank.position.y + vec.y
       },
       angle: tank.turretAngle,
-      distanceTraveled: 0
+      distanceTraveled: 0,
+      isRocket
     }
 
     this.bullets.push(bullet)

@@ -8,16 +8,27 @@ export class Camera {
   private mapWidth: number
   private mapHeight: number
   private initialized = false
+  /** Viewport width in cells (updates each frame via setViewport) */
+  viewportW = VIEWPORT_CELLS
+  /** Viewport height in cells */
+  viewportH = VIEWPORT_CELLS
 
   constructor(mapWidth: number, mapHeight: number) {
     this.mapWidth = mapWidth
     this.mapHeight = mapHeight
   }
 
+  /** Call each frame with canvas dimensions and cellPx to compute viewport in cells */
+  setViewport(canvasW: number, canvasH: number, cellPx: number): void {
+    this.viewportW = canvasW / cellPx
+    this.viewportH = canvasH / cellPx
+  }
+
   follow(target: Vec2): void {
-    const viewportHalf = VIEWPORT_CELLS / 2
-    const targetX = clamp(target.x - viewportHalf, 0, this.mapWidth - VIEWPORT_CELLS)
-    const targetY = clamp(target.y - viewportHalf, 0, this.mapHeight - VIEWPORT_CELLS)
+    const halfW = this.viewportW / 2
+    const halfH = this.viewportH / 2
+    const targetX = clamp(target.x - halfW, 0, Math.max(0, this.mapWidth - this.viewportW))
+    const targetY = clamp(target.y - halfH, 0, Math.max(0, this.mapHeight - this.viewportH))
 
     if (!this.initialized) {
       this.x = targetX
@@ -41,8 +52,8 @@ export class Camera {
 
   isVisible(wx: number, wy: number): boolean {
     return (
-      wx >= this.x - 1 && wx <= this.x + VIEWPORT_CELLS + 1 &&
-      wy >= this.y - 1 && wy <= this.y + VIEWPORT_CELLS + 1
+      wx >= this.x - 1 && wx <= this.x + this.viewportW + 1 &&
+      wy >= this.y - 1 && wy <= this.y + this.viewportH + 1
     )
   }
 }

@@ -41,6 +41,9 @@ export class PlayerManager {
       tankColor = '#8B0000'  // Dark red for boss
     }
 
+    // Bots start with 1 star (except boss)
+    const initialStars = (isBot && !isBoss) ? 1 : 0
+
     const tank: Tank = {
       id,
       name,
@@ -49,7 +52,7 @@ export class PlayerManager {
       turretAngle: 0,
       hp: initialMaxHp,
       maxHp: initialMaxHp,
-      stars: 0,
+      stars: initialStars,
       kills: 0,
       isBot,
       isAlive: true,
@@ -131,10 +134,6 @@ export class PlayerManager {
         // Boss doesn't collect stars or grow
         if (killer.id !== 'boss_1') {
           killer.stars += droppedStars
-          // Bonus: +1 star for killing a bot
-          if (tank.isBot) {
-            killer.stars += 1
-          }
           // Update tank size and max HP based on new star count
           killer.tankRadius = getTankRadius(killer.stars)
           const newMaxHp = getMaxHp(killer.stars, killer.isBot)

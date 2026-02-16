@@ -33,6 +33,10 @@ export const PHASE_GAMEOVER = 4
 export const PU_RAPID_FIRE = 0
 export const PU_SPEED = 1
 export const PU_SHIELD = 2
+export const PU_MAGNET = 3
+export const PU_HEAL = 4
+export const PU_OPTICAL_SIGHT = 5
+export const PU_ROCKET = 6
 
 // Helper functions for enum conversions
 import { Direction, GamePhase, PowerUpType } from '../types.js'
@@ -84,6 +88,10 @@ export function powerUpToNumber(powerUp: PowerUpType): number {
     case PowerUpType.RapidFire: return PU_RAPID_FIRE
     case PowerUpType.Speed: return PU_SPEED
     case PowerUpType.Shield: return PU_SHIELD
+    case PowerUpType.Magnet: return PU_MAGNET
+    case PowerUpType.Heal: return PU_HEAL
+    case PowerUpType.OpticalSight: return PU_OPTICAL_SIGHT
+    case PowerUpType.Rocket: return PU_ROCKET
     default: return PU_RAPID_FIRE
   }
 }
@@ -93,6 +101,10 @@ export function numberToPowerUp(num: number): PowerUpType {
     case PU_RAPID_FIRE: return PowerUpType.RapidFire
     case PU_SPEED: return PowerUpType.Speed
     case PU_SHIELD: return PowerUpType.Shield
+    case PU_MAGNET: return PowerUpType.Magnet
+    case PU_HEAL: return PowerUpType.Heal
+    case PU_OPTICAL_SIGHT: return PowerUpType.OpticalSight
+    case PU_ROCKET: return PowerUpType.Rocket
     default: return PowerUpType.RapidFire
   }
 }

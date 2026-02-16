@@ -61,7 +61,7 @@ export class GameRoom {
     this.physics = new PhysicsEngine(this.grid, this.map.width, this.map.height)
     this.bulletManager = new BulletManager(this.grid, this.map.width, this.map.height)
     this.playerManager = new PlayerManager(this.map.spawnPoints)
-    this.starManager = new StarManager(this.map.starPositions)
+    this.starManager = new StarManager([]) // Stars come from bots, not map
     this.powerUpManager = new PowerUpManager(this.map.width, this.map.height)
     this.zoneManager = new ZoneManager(this.map.width, this.map.height)
     this.portalManager = new PortalManager(this.grid, this.map.width, this.map.height)
@@ -247,7 +247,8 @@ export class GameRoom {
 
     for (const hit of hits) {
       if (hit.type === 'tank') {
-        const killed = this.playerManager.damageTank(hit.targetId, 1, this.now)
+        const damage = hit.bullet.isRocket ? 2 : 1
+        const killed = this.playerManager.damageTank(hit.targetId, damage, this.now)
         if (killed) {
           const dead = this.playerManager.getTank(hit.targetId)
           const killer = this.playerManager.getTank(hit.bullet.ownerId)

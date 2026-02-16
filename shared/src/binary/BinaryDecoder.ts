@@ -338,14 +338,17 @@ export class BinaryDecoder {
     const x = this.readFloat32()
     const y = this.readFloat32()
     const angle = this.readFloat32()
-    const distanceTraveled = this.readUint8()
+    const distByte = this.readUint8()
+    const distanceTraveled = distByte & 0x7F
+    const isRocket = (distByte & 0x80) !== 0
 
     return {
       id: `bullet-${bulletId}`,
       ownerId: '',
       position: { x, y },
       angle,
-      distanceTraveled
+      distanceTraveled,
+      isRocket
     }
   }
 

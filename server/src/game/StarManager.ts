@@ -53,19 +53,37 @@ export class StarManager {
   }
 
   dropStarsAtPosition(pos: Vec2, count: number): void {
-    // Scatter dropped stars around the death position
+    // Scatter dropped stars in a circle around the death position
     let placed = 0
     for (const star of this.stars) {
       if (placed >= count) break
       if (!star.active) {
+        const angle = (placed / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5
+        const dist = 1.0 + Math.random() * 1.5
         star.position = {
-          x: pos.x + (placed % 5) - 2,
-          y: pos.y + Math.floor(placed / 5) - 2
+          x: pos.x + Math.cos(angle) * dist,
+          y: pos.y + Math.sin(angle) * dist
         }
         star.active = true
         star.respawnAt = 0
         placed++
       }
+    }
+
+    // If not enough inactive stars, create new ones
+    while (placed < count) {
+      const angle = (placed / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5
+      const dist = 1.0 + Math.random() * 1.5
+      this.stars.push({
+        id: `star_${starIdCounter++}`,
+        position: {
+          x: pos.x + Math.cos(angle) * dist,
+          y: pos.y + Math.sin(angle) * dist
+        },
+        active: true,
+        respawnAt: 0
+      })
+      placed++
     }
   }
 

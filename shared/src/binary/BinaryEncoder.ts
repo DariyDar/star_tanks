@@ -181,7 +181,9 @@ function encodeBullet(view: DataView, offset: number, bullet: Bullet, indexMap: 
   view.setFloat32(offset, bullet.position.x, true); offset += 4
   view.setFloat32(offset, bullet.position.y, true); offset += 4
   view.setFloat32(offset, bullet.angle, true); offset += 4
-  view.setUint8(offset, Math.round(bullet.distanceTraveled)); offset += 1
+  // Pack isRocket flag into bit 7 of distance byte (distance is 0-127)
+  const distByte = Math.min(127, Math.round(bullet.distanceTraveled)) | (bullet.isRocket ? 0x80 : 0)
+  view.setUint8(offset, distByte); offset += 1
 
   return offset
 }

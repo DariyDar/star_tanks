@@ -67,8 +67,8 @@ export const MAX_PLAYERS = 30
 // Network
 export const INTERPOLATION_DELAY = 0  // Instant response - no delay
 
-// Brick HP - takes 3 hits to destroy for more strategic gameplay
-export const BRICK_HP = 3
+// Brick HP - takes 5 hits to destroy for more strategic gameplay
+export const BRICK_HP = 5
 
 // Tank colors
 export const TANK_COLORS = [

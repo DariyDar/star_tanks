@@ -1,5 +1,4 @@
 import { ObstacleType, type Obstacle } from '@shared/types.js'
-import { VIEWPORT_CELLS } from '@shared/constants.js'
 import type { Camera } from '../game/Camera.js'
 
 const OBSTACLE_COLORS: Record<ObstacleType, string> = {
@@ -27,8 +26,8 @@ export class MapRenderer {
   render(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
     const startX = Math.floor(camera.x)
     const startY = Math.floor(camera.y)
-    const endX = startX + VIEWPORT_CELLS + 1
-    const endY = startY + VIEWPORT_CELLS + 1
+    const endX = startX + Math.ceil(camera.viewportW) + 1
+    const endY = startY + Math.ceil(camera.viewportH) + 1
 
     // Ground
     ctx.fillStyle = '#3A3A3A'
@@ -52,11 +51,11 @@ export class MapRenderer {
       ctx.stroke()
     }
 
-    // Obstacles in viewport with 3D effects
+    // Obstacles in viewport with 3D effects (skip bushes — rendered on top of tanks)
     for (let y = startY; y <= endY; y++) {
       for (let x = startX; x <= endX; x++) {
         const obs = this.obstacleGrid.get(`${x},${y}`)
-        if (!obs) continue
+        if (!obs || obs.type === ObstacleType.Bush) continue
 
         const { sx, sy } = camera.worldToScreen(x, y, cellPx)
 
@@ -100,15 +99,40 @@ export class MapRenderer {
           ctx.lineWidth = 1
           ctx.strokeRect(sx + 1, sy + 1, 2, 2)
 
-          // Damage cracks if HP is low
-          if (obs.hp < 3) {
+          // Progressive damage cracks
+          if (obs.hp <= 4) {
             ctx.strokeStyle = '#000'
             ctx.lineWidth = 1
             ctx.beginPath()
             ctx.moveTo(sx + cellPx * 0.3, sy + cellPx * 0.2)
-            ctx.lineTo(sx + cellPx * 0.6, sy + cellPx * 0.5)
+            ctx.lineTo(sx + cellPx * 0.5, sy + cellPx * 0.45)
+            ctx.stroke()
+          }
+          if (obs.hp <= 3) {
+            ctx.beginPath()
+            ctx.moveTo(sx + cellPx * 0.5, sy + cellPx * 0.45)
             ctx.lineTo(sx + cellPx * 0.7, sy + cellPx * 0.8)
             ctx.stroke()
+          }
+          if (obs.hp <= 2) {
+            ctx.beginPath()
+            ctx.moveTo(sx + cellPx * 0.6, sy + cellPx * 0.1)
+            ctx.lineTo(sx + cellPx * 0.4, sy + cellPx * 0.4)
+            ctx.lineTo(sx + cellPx * 0.2, sy + cellPx * 0.6)
+            ctx.stroke()
+            // Darken the brick to show heavy damage
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'
+            ctx.fillRect(sx, sy, cellPx, cellPx)
+          }
+          if (obs.hp <= 1) {
+            // About to break — show holes
+            ctx.fillStyle = 'rgba(58, 58, 58, 0.8)'
+            ctx.beginPath()
+            ctx.arc(sx + cellPx * 0.35, sy + cellPx * 0.4, cellPx * 0.12, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.beginPath()
+            ctx.arc(sx + cellPx * 0.7, sy + cellPx * 0.65, cellPx * 0.08, 0, Math.PI * 2)
+            ctx.fill()
           }
         }
 
@@ -202,46 +226,6 @@ export class MapRenderer {
           ctx.fill()
         }
 
-        // 3D Bush with depth
-        if (obs.type === ObstacleType.Bush) {
-          // Bush clusters with radial gradients
-          const clusters = [
-            { x: 0.25, y: 0.3, r: 0.22 },
-            { x: 0.55, y: 0.35, r: 0.25 },
-            { x: 0.7, y: 0.6, r: 0.2 },
-            { x: 0.3, y: 0.65, r: 0.23 }
-          ]
-
-          for (const cluster of clusters) {
-            const bx = sx + cellPx * cluster.x
-            const by = sy + cellPx * cluster.y
-            const r = cellPx * cluster.r
-
-            // Shadow under bush
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
-            ctx.beginPath()
-            ctx.arc(bx + r * 0.2, by + r * 0.2, r, 0, Math.PI * 2)
-            ctx.fill()
-
-            // Bush gradient (3D sphere)
-            const bushGrad = ctx.createRadialGradient(bx - r * 0.3, by - r * 0.3, 0, bx, by, r)
-            bushGrad.addColorStop(0, '#52B788')
-            bushGrad.addColorStop(0.5, '#40916C')
-            bushGrad.addColorStop(1, '#2D6A4F')
-
-            ctx.fillStyle = bushGrad
-            ctx.beginPath()
-            ctx.arc(bx, by, r, 0, Math.PI * 2)
-            ctx.fill()
-
-            // Highlight
-            ctx.fillStyle = 'rgba(130, 220, 150, 0.4)'
-            ctx.beginPath()
-            ctx.arc(bx - r * 0.3, by - r * 0.3, r * 0.4, 0, Math.PI * 2)
-            ctx.fill()
-          }
-        }
-
         // 3D Quicksand with flowing texture
         if (obs.type === ObstacleType.Quicksand) {
           const t = Date.now() / 1500
@@ -295,6 +279,56 @@ export class MapRenderer {
           ctx.beginPath()
           ctx.arc(sx + cellPx / 2, sy + cellPx / 2, cellPx * (0.35 + ripple), 0, Math.PI * 2)
           ctx.stroke()
+        }
+      }
+    }
+  }
+
+  /** Render bushes on top of tanks so players can hide */
+  renderBushes(ctx: CanvasRenderingContext2D, camera: Camera, cellPx: number): void {
+    const startX = Math.floor(camera.x)
+    const startY = Math.floor(camera.y)
+    const endX = startX + Math.ceil(camera.viewportW) + 1
+    const endY = startY + Math.ceil(camera.viewportH) + 1
+
+    for (let y = startY; y <= endY; y++) {
+      for (let x = startX; x <= endX; x++) {
+        const obs = this.obstacleGrid.get(`${x},${y}`)
+        if (!obs || obs.type !== ObstacleType.Bush) continue
+
+        const { sx, sy } = camera.worldToScreen(x, y, cellPx)
+
+        const clusters = [
+          { x: 0.25, y: 0.3, r: 0.22 },
+          { x: 0.55, y: 0.35, r: 0.25 },
+          { x: 0.7, y: 0.6, r: 0.2 },
+          { x: 0.3, y: 0.65, r: 0.23 }
+        ]
+
+        for (const cluster of clusters) {
+          const bx = sx + cellPx * cluster.x
+          const by = sy + cellPx * cluster.y
+          const r = cellPx * cluster.r
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+          ctx.beginPath()
+          ctx.arc(bx + r * 0.2, by + r * 0.2, r, 0, Math.PI * 2)
+          ctx.fill()
+
+          const bushGrad = ctx.createRadialGradient(bx - r * 0.3, by - r * 0.3, 0, bx, by, r)
+          bushGrad.addColorStop(0, '#52B788')
+          bushGrad.addColorStop(0.5, '#40916C')
+          bushGrad.addColorStop(1, '#2D6A4F')
+
+          ctx.fillStyle = bushGrad
+          ctx.beginPath()
+          ctx.arc(bx, by, r, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = 'rgba(130, 220, 150, 0.4)'
+          ctx.beginPath()
+          ctx.arc(bx - r * 0.3, by - r * 0.3, r * 0.4, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
     }
