@@ -129,24 +129,11 @@ export class StateBuffer {
       }
     })
 
-    // Interpolate bullet positions — O(1) lookup via Map
-    const interpolatedBullets = next.state.bullets.map(nextBullet => {
-      const prevBullet = prev!.bulletMap.get(nextBullet.id)
-      if (!prevBullet) return nextBullet
-
-      return {
-        ...nextBullet,
-        position: {
-          x: lerp(prevBullet.position.x, nextBullet.position.x, t),
-          y: lerp(prevBullet.position.y, nextBullet.position.y, t)
-        }
-      }
-    })
-
+    // Bullets: skip interpolation — they move fast & linearly,
+    // lerping causes phantom artifacts when bullets appear/disappear between states
     return {
       ...next.state,
-      tanks: interpolatedTanks,
-      bullets: interpolatedBullets
+      tanks: interpolatedTanks
     }
   }
 

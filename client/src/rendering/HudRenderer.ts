@@ -358,22 +358,22 @@ export class HudRenderer {
     // Adjust for ceil: we want the animation to play for each integer second
     const t = (num === timeRemaining) ? 0 : frac
 
-    // Scale: starts at 1x, grows to ~3x
-    const scale = 1 + t * 2.5
-    // Opacity: starts fully visible, fades to 0
-    const alpha = Math.max(0, 1 - t * 1.1)
+    // Scale: starts at 1x, grows to ~2x (smaller to not block view)
+    const scale = 1 + t * 1.5
+    // Opacity: semi-transparent (max 0.35) and fades out
+    const alpha = Math.max(0, 0.35 * (1 - t * 1.1))
 
     if (alpha <= 0) return
 
     ctx.save()
     ctx.globalAlpha = alpha
 
-    // Glow effect
+    // Glow effect (reduced)
     ctx.shadowColor = '#FF3333'
-    ctx.shadowBlur = 30 * scale
+    ctx.shadowBlur = 15 * scale
 
-    // Text
-    const fontSize = Math.min(w, h) * 0.35 * scale
+    // Text (smaller)
+    const fontSize = Math.min(w, h) * 0.25 * scale
     ctx.font = `bold ${fontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'

@@ -543,14 +543,14 @@ export class GameRoom {
       return
     }
 
-    // 8b. CTF time limit: 4 minutes
-    if (this.mapId === 'ctf' && elapsed >= 240000) {
+    // 8b. CTF time limit: 10 minutes
+    if (this.mapId === 'ctf' && elapsed >= 600000) {
       this.stop()
       return
     }
 
-    // 8c. CTF boss: spawn GUARDIAN in last 30 seconds
-    if (this.mapId === 'ctf' && !this.ctfBossSpawned && elapsed >= 210000) {
+    // 8c. CTF boss: spawn GUARDIAN at 7th minute (420s)
+    if (this.mapId === 'ctf' && !this.ctfBossSpawned && elapsed >= 420000) {
       this.ctfBossSpawned = true
       const bossId = 'ctf_boss'
       this.playerManager.addPlayer(bossId, 'GUARDIAN', true)
@@ -656,7 +656,7 @@ export class GameRoom {
       zone: this.zoneManager.getZone(),
       boss: null,  // Boss is now a regular tank, not a separate entity
       ctf: this.ctfManager ? this.ctfManager.getState() : null,
-      ctfTimeRemaining: this.mapId === 'ctf' ? Math.max(0, Math.ceil((240000 - timeElapsed) / 1000)) : 0,
+      ctfTimeRemaining: this.mapId === 'ctf' ? Math.max(0, Math.ceil((600000 - timeElapsed) / 1000)) : 0,
       destroyedObstacles: this.grid.destroyedPositions,
       leaderboard: this.cachedLeaderboard,
       playersAlive: this.playerManager.aliveCount,
