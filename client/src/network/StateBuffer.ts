@@ -10,6 +10,7 @@ interface TimedState {
 }
 
 const INTERPOLATION_BUFFER_MS = 80 // Render 80ms behind latest
+const TELEPORT_THRESHOLD_SQ = 25  // 5 cells squared — skip lerp if tank jumps further
 
 export interface DebugInfo {
   mode: 'interpolating' | 'extrapolating' | 'waiting' | 'single'
@@ -67,6 +68,11 @@ export class StateBuffer {
             const extraTanks = b.state.tanks.map(bTank => {
               const aTank = a.tankMap.get(bTank.id)
               if (!aTank) return bTank
+              // Skip extrapolation on respawn or teleport
+              if (!aTank.isAlive && bTank.isAlive) return bTank
+              const ddx = bTank.position.x - aTank.position.x
+              const ddy = bTank.position.y - aTank.position.y
+              if (ddx * ddx + ddy * ddy > TELEPORT_THRESHOLD_SQ) return bTank
               return {
                 ...bTank,
                 position: {
@@ -77,7 +83,19 @@ export class StateBuffer {
                 turretAngle: lerpAngle(aTank.turretAngle, bTank.turretAngle, 1 + t)
               }
             })
-            return { ...b.state, tanks: extraTanks }
+            // Extrapolate bullet positions too (instead of showing stale positions)
+            const extraBullets = b.state.bullets.map(bBullet => {
+              const aBullet = a.bulletMap.get(bBullet.id)
+              if (!aBullet) return bBullet
+              return {
+                ...bBullet,
+                position: {
+                  x: bBullet.position.x + (bBullet.position.x - aBullet.position.x) * t,
+                  y: bBullet.position.y + (bBullet.position.y - aBullet.position.y) * t
+                }
+              }
+            })
+            return { ...b.state, tanks: extraTanks, bullets: extraBullets }
           }
         }
       }
@@ -93,6 +111,12 @@ export class StateBuffer {
     const interpolatedTanks = next.state.tanks.map(nextTank => {
       const prevTank = prev!.tankMap.get(nextTank.id)
       if (!prevTank) return nextTank
+
+      // Skip interpolation on respawn (dead→alive) or teleport (large position jump)
+      if (!prevTank.isAlive && nextTank.isAlive) return nextTank
+      const dx = nextTank.position.x - prevTank.position.x
+      const dy = nextTank.position.y - prevTank.position.y
+      if (dx * dx + dy * dy > TELEPORT_THRESHOLD_SQ) return nextTank
 
       return {
         ...nextTank,
