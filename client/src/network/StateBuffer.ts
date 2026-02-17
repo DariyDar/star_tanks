@@ -11,9 +11,17 @@ interface TimedState {
 
 const INTERPOLATION_BUFFER_MS = 80 // Render 80ms behind latest
 
+export interface DebugInfo {
+  mode: 'interpolating' | 'extrapolating' | 'waiting' | 'single'
+  bufferSize: number
+  packetGapMs: number  // gap between last 2 packets
+  extrapolateMs: number  // how far ahead we're extrapolating
+}
+
 export class StateBuffer {
   private buffer: TimedState[] = []
   private maxSize = 30
+  debugInfo: DebugInfo = { mode: 'waiting', bufferSize: 0, packetGapMs: 0, extrapolateMs: 0 }
 
   push(state: GameState): void {
     // Pre-build Maps for O(1) lookup during interpolation
@@ -29,8 +37,8 @@ export class StateBuffer {
   }
 
   getInterpolatedState(): GameState | null {
-    if (this.buffer.length === 0) return null
-    if (this.buffer.length === 1) return this.buffer[0].state
+    if (this.buffer.length === 0) { this.debugInfo.mode = 'waiting'; this.debugInfo.bufferSize = 0; return null }
+    if (this.buffer.length === 1) { this.debugInfo.mode = 'single'; this.debugInfo.bufferSize = 1; return this.buffer[0].state }
 
     const renderTime = Date.now() - INTERPOLATION_BUFFER_MS
     let prev: TimedState | null = null
@@ -50,6 +58,7 @@ export class StateBuffer {
         const a = this.buffer[this.buffer.length - 2]
         const b = this.buffer[this.buffer.length - 1]
         const gap = b.receiveTime - a.receiveTime
+        this.debugInfo = { mode: 'extrapolating', bufferSize: this.buffer.length, packetGapMs: gap, extrapolateMs: renderTime - b.receiveTime }
         if (gap > 0) {
           const elapsed = renderTime - b.receiveTime
           // Clamp extrapolation to max 150ms to avoid overshooting
@@ -75,7 +84,10 @@ export class StateBuffer {
       return this.buffer[this.buffer.length - 1].state
     }
 
-    const t = (renderTime - prev.receiveTime) / (next.receiveTime - prev.receiveTime)
+    this.debugInfo = { mode: 'interpolating', bufferSize: this.buffer.length, packetGapMs: next.receiveTime - prev.receiveTime, extrapolateMs: 0 }
+    const rawT = (renderTime - prev.receiveTime) / (next.receiveTime - prev.receiveTime)
+    // Smoothstep for smoother transitions between packets (reduces jitter)
+    const t = rawT * rawT * (3 - 2 * rawT)
 
     // Interpolate tank positions and angles — O(1) lookup via Map
     const interpolatedTanks = next.state.tanks.map(nextTank => {

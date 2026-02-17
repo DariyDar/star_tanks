@@ -53,6 +53,13 @@ const INPUT_SEND_INTERVAL = 50 // Send input at 20Hz (same as server tick)
 let prevBullets: Map<string, Bullet> = new Map()
 let lastClientFireTime = 0  // Client-side fire cooldown tracking
 
+// Debug overlay
+let debugFps = 0
+let debugFrameCount = 0
+let debugFpsTimer = 0
+let debugPacketsPerSec = 0
+let debugPacketCount = 0
+
 // Stuck detection
 let stuckTimer = 0
 let lastTankPos = { x: 0, y: 0 }
@@ -135,6 +142,7 @@ const socket = new SocketClient({
   onState(state) {
     stateBuffer.push(state)
     lastLeaderboard = state.leaderboard
+    debugPacketCount++
   },
 
   onKill(payload) {
@@ -302,6 +310,49 @@ function gameLoop(now: number) {
     if (mobileControls.isActive) {
       mobileControls.render(canvas.getContext('2d')!)
     }
+  }
+
+  // Debug overlay
+  debugFrameCount++
+  debugFpsTimer += dt
+  if (debugFpsTimer >= 1) {
+    debugFps = debugFrameCount
+    debugFrameCount = 0
+    debugPacketsPerSec = debugPacketCount
+    debugPacketCount = 0
+    debugFpsTimer = 0
+  }
+
+  if (joined && !lobby.isVisible && !resultScreen.isVisible) {
+    const ctx = canvas.getContext('2d')!
+    const dbg = stateBuffer.debugInfo
+    const myTank = client.getMyTank()
+    const pp = client.predictedPos
+    let desync = 0
+    if (myTank && pp) {
+      const ddx = myTank.position.x - pp.x
+      const ddy = myTank.position.y - pp.y
+      desync = Math.sqrt(ddx * ddx + ddy * ddy)
+    }
+    const lines = [
+      `FPS: ${debugFps}`,
+      `Ping: ${socket.currentLatency}ms`,
+      `Packets/s: ${debugPacketsPerSec}`,
+      `Buffer: ${dbg.bufferSize}`,
+      `Mode: ${dbg.mode}`,
+      `Pkt gap: ${Math.round(dbg.packetGapMs)}ms`,
+      `Extrap: ${Math.round(dbg.extrapolateMs)}ms`,
+      `Desync: ${desync.toFixed(2)}`
+    ]
+    ctx.save()
+    ctx.font = '11px monospace'
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'
+    ctx.fillRect(4, 4, 150, lines.length * 14 + 6)
+    ctx.fillStyle = '#0f0'
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], 8, 16 + i * 14)
+    }
+    ctx.restore()
   }
 
   requestAnimationFrame(gameLoop)

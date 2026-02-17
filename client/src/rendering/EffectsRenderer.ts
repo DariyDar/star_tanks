@@ -217,8 +217,8 @@ export class EffectsRenderer {
     if (this.starCollects.length > 20) this.starCollects.shift()
   }
 
-  addScreenShake(intensity: number): void {
-    this.shakeIntensity = Math.max(this.shakeIntensity, intensity)
+  addScreenShake(_intensity: number): void {
+    // Disabled — screen shake causes disorientation
   }
 
   triggerRecoil(angle: number): void {

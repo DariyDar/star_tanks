@@ -18,7 +18,7 @@ export class GameClient {
   mapHeight = 0
 
   // Client-side prediction
-  private predictedPos: Vec2 | null = null
+  predictedPos: Vec2 | null = null
   private predictedHullAngle = 0
   private predictedTurretAngle = 0
 
@@ -157,8 +157,8 @@ export class GameClient {
           // Teleport: large desync (portal, respawn)
           this.predictedPos = { ...myTank.position }
         } else if (dist > 0.05) {
-          // Aggressive blend for responsive feel
-          const blendFactor = dist > 2 ? 0.7 : dist > 0.5 ? 0.5 : 0.35
+          // Very gentle continuous correction — imperceptible but prevents drift
+          const blendFactor = dist > 3 ? 0.4 : dist > 1 ? 0.1 : 0.05
           this.predictedPos.x += dx * blendFactor
           this.predictedPos.y += dy * blendFactor
         }
