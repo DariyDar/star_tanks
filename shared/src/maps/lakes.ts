@@ -64,24 +64,31 @@ export function generateLakesMap(): MapDefinition {
     }
   }
 
-  // Brick walls (scattered) - dense breakable maze
-  for (let i = 0; i < 150; i++) {
+  // Brick walls (scattered) - 3 rows thick for solid cover
+  for (let i = 0; i < 180; i++) {
     const x = rngInt(rng, 5, MAP_WIDTH - 10)
     const y = rngInt(rng, 5, MAP_HEIGHT - 10)
     const horizontal = rng() < 0.5
     const len = rngInt(rng, 3, 8)
 
     for (let j = 0; j < len; j++) {
-      if (horizontal) addObstacle(x + j, y, ObstacleType.Brick)
-      else addObstacle(x, y + j, ObstacleType.Brick)
+      if (horizontal) {
+        addObstacle(x + j, y - 1, ObstacleType.Brick)
+        addObstacle(x + j, y, ObstacleType.Brick)
+        addObstacle(x + j, y + 1, ObstacleType.Brick)
+      } else {
+        addObstacle(x - 1, y + j, ObstacleType.Brick)
+        addObstacle(x, y + j, ObstacleType.Brick)
+        addObstacle(x + 1, y + j, ObstacleType.Brick)
+      }
     }
   }
 
-  // Brick boulders (breakable cover)
-  for (let i = 0; i < 30; i++) {
+  // Brick boulders (breakable cover) — larger
+  for (let i = 0; i < 40; i++) {
     const cx = rngInt(rng, 10, MAP_WIDTH - 10)
     const cy = rngInt(rng, 10, MAP_HEIGHT - 10)
-    const size = rngInt(rng, 2, 3)
+    const size = rngInt(rng, 2, 4)
 
     for (let dy = 0; dy < size; dy++) {
       for (let dx = 0; dx < size; dx++) {

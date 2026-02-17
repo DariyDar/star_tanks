@@ -1,4 +1,5 @@
-import type { GameState, Tank } from '@shared/types.js'
+import type { GameState, Obstacle } from '@shared/types.js'
+import { ObstacleType } from '@shared/types.js'
 import type { Camera } from '../game/Camera.js'
 
 const MINIMAP_SIZE = 150
@@ -6,13 +7,18 @@ const MINIMAP_PADDING = 10
 const isMobile = typeof window !== 'undefined' && 'ontouchstart' in window
 
 export class MinimapRenderer {
+  // Pre-rendered obstacle layer (regenerated when obstacles change)
+  private obstacleCanvas: OffscreenCanvas | null = null
+  private obstacleCount = -1
+
   render(
     ctx: CanvasRenderingContext2D,
     state: GameState,
     camera: Camera,
     mapWidth: number,
     mapHeight: number,
-    myId: string
+    myId: string,
+    obstacles?: Obstacle[]
   ): void {
     const s = isMobile ? 1.3 : 1
     const size = Math.round(MINIMAP_SIZE * s)
@@ -33,6 +39,39 @@ export class MinimapRenderer {
 
     const scaleX = size / mapWidth
     const scaleY = size / mapHeight
+
+    // Obstacles (pre-rendered to offscreen canvas for performance)
+    if (obstacles && obstacles.length > 0) {
+      if (!this.obstacleCanvas || this.obstacleCount !== obstacles.length) {
+        this.obstacleCanvas = new OffscreenCanvas(size, size)
+        this.obstacleCount = obstacles.length
+        const oCtx = this.obstacleCanvas.getContext('2d')!
+
+        // Each obstacle cell is tiny on minimap, so we batch by type
+        const colors: Partial<Record<string, string>> = {
+          [ObstacleType.Brick]: 'rgba(160, 120, 80, 0.7)',
+          [ObstacleType.Steel]: 'rgba(180, 180, 190, 0.8)',
+          [ObstacleType.Water]: 'rgba(40, 100, 200, 0.5)',
+          [ObstacleType.Bush]: 'rgba(40, 130, 40, 0.4)',
+          [ObstacleType.Quicksand]: 'rgba(180, 160, 80, 0.4)'
+        }
+
+        // Draw obstacles grouped by type for fewer fillStyle changes
+        for (const type of [ObstacleType.Steel, ObstacleType.Brick, ObstacleType.Water, ObstacleType.Quicksand, ObstacleType.Bush]) {
+          oCtx.fillStyle = colors[type] ?? 'rgba(128,128,128,0.5)'
+          for (const obs of obstacles) {
+            if (obs.type !== type) continue
+            const px = obs.x * scaleX
+            const py = obs.y * scaleY
+            // Draw at least 1px, but scale up for visibility
+            const w = Math.max(1, Math.ceil(scaleX))
+            const h = Math.max(1, Math.ceil(scaleY))
+            oCtx.fillRect(px, py, w, h)
+          }
+        }
+      }
+      ctx.drawImage(this.obstacleCanvas, mx, my)
+    }
 
     // Zone circle
     if (state.zone.currentRadius < Math.max(mapWidth, mapHeight)) {

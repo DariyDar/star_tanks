@@ -270,7 +270,7 @@ export class Renderer {
     this.hudRenderer.render(ctx, state, myTank)
 
     // Minimap (not affected by shake)
-    this.minimapRenderer.render(ctx, state, camera, mapWidth, mapHeight, playerId)
+    this.minimapRenderer.render(ctx, state, camera, mapWidth, mapHeight, playerId, client.obstacles)
 
     // Fade effect (portal exit / death)
     this.effects.renderFade(ctx)

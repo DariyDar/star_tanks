@@ -91,8 +91,8 @@ export function generateCTFMap(): MapDefinition {
     }
   }
 
-  // Brick wall segments — more of them, longer (mirrored)
-  for (let i = 0; i < 70; i++) {
+  // Brick wall segments — 3 rows thick, mirrored
+  for (let i = 0; i < 80; i++) {
     const offX = rngInt(rng, 5, midX - 5)
     const offY = rngInt(rng, 5, MAP_HEIGHT - 5)
     const horizontal = rng() < 0.5
@@ -100,30 +100,38 @@ export function generateCTFMap(): MapDefinition {
 
     for (let j = 0; j < len; j++) {
       if (horizontal) {
-        addObstacle(midX - offX + j, offY, ObstacleType.Brick)
-        addObstacle(midX + offX - j, offY, ObstacleType.Brick)
+        for (let r = -1; r <= 1; r++) {
+          addObstacle(midX - offX + j, offY + r, ObstacleType.Brick)
+          addObstacle(midX + offX - j, offY + r, ObstacleType.Brick)
+        }
       } else {
-        addObstacle(midX - offX, offY + j, ObstacleType.Brick)
-        addObstacle(midX + offX, offY + j, ObstacleType.Brick)
+        for (let r = -1; r <= 1; r++) {
+          addObstacle(midX - offX + r, offY + j, ObstacleType.Brick)
+          addObstacle(midX + offX - r, offY + j, ObstacleType.Brick)
+        }
       }
     }
   }
 
-  // L-shaped and T-shaped fortifications (mirrored)
-  for (let i = 0; i < 8; i++) {
+  // L-shaped and T-shaped fortifications — 3 thick (mirrored)
+  for (let i = 0; i < 10; i++) {
     const offX = rngInt(rng, 20, midX - 15)
     const offY = rngInt(rng, 15, MAP_HEIGHT - 15)
     const armLen = rngInt(rng, 3, 6)
 
-    // Horizontal arm
+    // Horizontal arm (3 thick)
     for (let j = 0; j < armLen; j++) {
-      addObstacle(midX - offX + j, offY, ObstacleType.Brick)
-      addObstacle(midX + offX - j, offY, ObstacleType.Brick)
+      for (let r = -1; r <= 1; r++) {
+        addObstacle(midX - offX + j, offY + r, ObstacleType.Brick)
+        addObstacle(midX + offX - j, offY + r, ObstacleType.Brick)
+      }
     }
-    // Vertical arm (from one end)
+    // Vertical arm (3 thick)
     for (let j = 1; j <= armLen; j++) {
-      addObstacle(midX - offX, offY + j, ObstacleType.Brick)
-      addObstacle(midX + offX, offY + j, ObstacleType.Brick)
+      for (let r = -1; r <= 1; r++) {
+        addObstacle(midX - offX + r, offY + j, ObstacleType.Brick)
+        addObstacle(midX + offX - r, offY + j, ObstacleType.Brick)
+      }
     }
   }
 

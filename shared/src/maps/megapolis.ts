@@ -41,12 +41,12 @@ export function generateMegapolisMap(): MapDefinition {
       const startX = 5 + bx * (blockSize + streetWidth)
       const startY = 5 + by * (blockSize + streetWidth)
 
-      if (rng() < 0.5) continue  // Skip 50% of blocks for more open space
+      if (rng() < 0.35) continue  // Skip 35% of blocks — denser city
 
       const buildingType = rng()
 
       if (buildingType < 0.45) {
-        // Hollow brick building - larger for maze effect
+        // Hollow brick building - 2-cell thick walls
         const w = rngInt(rng, 7, 11)
         const h = rngInt(rng, 7, 10)
         const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
@@ -54,7 +54,9 @@ export function generateMegapolisMap(): MapDefinition {
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
-            if (dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1) {
+            const isEdge = dx <= 1 || dx >= w - 2 || dy <= 1 || dy >= h - 2
+            const isInner = dx > 1 && dx < w - 2 && dy > 1 && dy < h - 2
+            if (isEdge && !isInner) {
               addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
             }
           }
@@ -62,9 +64,9 @@ export function generateMegapolisMap(): MapDefinition {
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
 
       } else if (buildingType < 0.6) {
-        // Brick bunker (breakable)
-        const w = rngInt(rng, 2, 4)
-        const h = rngInt(rng, 2, 4)
+        // Brick bunker (breakable) — larger
+        const w = rngInt(rng, 3, 5)
+        const h = rngInt(rng, 3, 5)
         const ox = startX + rngInt(rng, 1, Math.max(2, blockSize - w - 1))
         const oy = startY + rngInt(rng, 1, Math.max(2, blockSize - h - 1))
 
@@ -88,7 +90,7 @@ export function generateMegapolisMap(): MapDefinition {
         }
 
       } else {
-        // Mixed building
+        // Mixed building — 2-cell thick walls
         const w = rngInt(rng, 5, 8)
         const h = rngInt(rng, 5, 8)
         const ox = startX + rngInt(rng, 0, Math.max(0, blockSize - w))
@@ -96,8 +98,9 @@ export function generateMegapolisMap(): MapDefinition {
 
         for (let dy = 0; dy < h; dy++) {
           for (let dx = 0; dx < w; dx++) {
-            const isEdge = dx === 0 || dx === w - 1 || dy === 0 || dy === h - 1
-            if (isEdge) addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
+            const isEdge = dx <= 1 || dx >= w - 2 || dy <= 1 || dy >= h - 2
+            const isInner = dx > 1 && dx < w - 2 && dy > 1 && dy < h - 2
+            if (isEdge && !isInner) addObstacle(ox + dx, oy + dy, ObstacleType.Brick)
           }
         }
         makeDoor(ox, oy, w, h, rngInt(rng, 0, 3))
