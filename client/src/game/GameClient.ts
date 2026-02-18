@@ -1,6 +1,6 @@
 import type { GameState, Tank, CompressedMapData, Obstacle, Vec2 } from '@shared/types.js'
 import { ObstacleType } from '@shared/types.js'
-import { BRICK_HP, TANK_SPEED, TANK_RADIUS, MAP_WIDTH } from '@shared/constants.js'
+import { BRICK_HP, TANK_SPEED, MAP_WIDTH } from '@shared/constants.js'
 import { angleToVec, clamp } from '@shared/math.js'
 import { Camera } from './Camera.js'
 
@@ -67,6 +67,9 @@ export class GameClient {
 
     this.predictedHullAngle = moveAngle
 
+    // Use actual tank radius (grows with stars) to match server collision
+    const radius = myTank.tankRadius
+
     const vec = angleToVec(moveAngle)
     const speed = TANK_SPEED
     const dx = vec.x * speed * dt
@@ -75,27 +78,27 @@ export class GameClient {
     let newX = this.predictedPos.x + dx
     let newY = this.predictedPos.y + dy
 
-    newX = clamp(newX, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
-    newY = clamp(newY, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
+    newX = clamp(newX, radius, this.mapWidth - 1 - radius)
+    newY = clamp(newY, radius, this.mapHeight - 1 - radius)
 
     // Try full movement
-    if (!this.collidesWithObstacle(newX, newY)) {
+    if (!this.collidesWithObstacle(newX, newY, radius)) {
       this.predictedPos = { x: newX, y: newY }
       this.camera.follow(this.predictedPos)
       return
     }
 
     // Wall sliding: try X-only
-    const slideX = clamp(this.predictedPos.x + dx, TANK_RADIUS, this.mapWidth - 1 - TANK_RADIUS)
-    if (!this.collidesWithObstacle(slideX, this.predictedPos.y)) {
+    const slideX = clamp(this.predictedPos.x + dx, radius, this.mapWidth - 1 - radius)
+    if (!this.collidesWithObstacle(slideX, this.predictedPos.y, radius)) {
       this.predictedPos = { x: slideX, y: this.predictedPos.y }
       this.camera.follow(this.predictedPos)
       return
     }
 
     // Wall sliding: try Y-only
-    const slideY = clamp(this.predictedPos.y + dy, TANK_RADIUS, this.mapHeight - 1 - TANK_RADIUS)
-    if (!this.collidesWithObstacle(this.predictedPos.x, slideY)) {
+    const slideY = clamp(this.predictedPos.y + dy, radius, this.mapHeight - 1 - radius)
+    if (!this.collidesWithObstacle(this.predictedPos.x, slideY, radius)) {
       this.predictedPos = { x: this.predictedPos.x, y: slideY }
       this.camera.follow(this.predictedPos)
       return
@@ -105,11 +108,11 @@ export class GameClient {
     this.camera.follow(this.predictedPos)
   }
 
-  private collidesWithObstacle(cx: number, cy: number): boolean {
-    const minX = Math.floor(cx - TANK_RADIUS)
-    const maxX = Math.floor(cx + TANK_RADIUS)
-    const minY = Math.floor(cy - TANK_RADIUS)
-    const maxY = Math.floor(cy + TANK_RADIUS)
+  private collidesWithObstacle(cx: number, cy: number, radius: number): boolean {
+    const minX = Math.floor(cx - radius)
+    const maxX = Math.floor(cx + radius)
+    const minY = Math.floor(cy - radius)
+    const maxY = Math.floor(cy + radius)
 
     for (let gy = minY; gy <= maxY; gy++) {
       for (let gx = minX; gx <= maxX; gx++) {
@@ -120,7 +123,7 @@ export class GameClient {
         const distX = cx - closestX
         const distY = cy - closestY
 
-        if (distX * distX + distY * distY < TANK_RADIUS * TANK_RADIUS) {
+        if (distX * distX + distY * distY < radius * radius) {
           return true
         }
       }
