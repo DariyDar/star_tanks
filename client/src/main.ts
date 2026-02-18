@@ -8,6 +8,24 @@ import { StateBuffer } from './network/StateBuffer.js'
 import { ResultScreen } from './ui/ResultScreen.js'
 import { MobileControls } from './ui/MobileControls.js'
 import { LobbyScreen } from './ui/LobbyScreen.js'
+import { getTelegramUser, getTelegramInitData, initTelegramApp, triggerHaptic } from './telegram.js'
+
+// Initialize Telegram Mini App if running inside Telegram
+initTelegramApp()
+
+// Generate or retrieve persistent device ID for non-Telegram users
+function getDeviceId(): string {
+  let id = localStorage.getItem('tankbr_device_id')
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem('tankbr_device_id', id)
+  }
+  return id
+}
+const deviceId = getDeviceId()
+
+// Auto-fill name from Telegram if available
+const tgUser = getTelegramUser()
 
 // Try to lock landscape orientation on mobile
 try { (screen.orientation as any)?.lock?.('landscape').catch(() => {}) } catch {}
@@ -40,7 +58,7 @@ document.body.appendChild(exitBtn)
 
 let sequenceNumber = 0
 let joined = false
-let lastPlayerName = 'Player'
+let lastPlayerName = tgUser?.first_name ?? 'Player'
 let lastMapId = 'lakes'
 let lastLeaderboard: import('@shared/types.js').LeaderboardEntry[] = []
 let lastFrameTime = performance.now()
@@ -90,7 +108,7 @@ function joinGame(name: string, mapId: string, color: string, ctfTeam?: 'a' | 'b
   renderer.setCustomTankColors(lobby.customTankColors)
 
   if (socket.connected) {
-    socket.join(name, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
+    socket.join(name, mapId, color, ctfTeam, ctfBotsA, ctfBotsB, getTelegramInitData() ?? undefined, deviceId)
   }
 }
 
@@ -269,6 +287,7 @@ function gameLoop(now: number) {
       if (nowMs - lastClientFireTime >= cooldown) {
         lastClientFireTime = nowMs
         renderer.effects.triggerRecoil(aimAngle)
+        triggerHaptic('light')
 
         if (myTank) {
           const barrelLength = myTank.tankRadius * 1.2

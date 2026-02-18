@@ -1,3 +1,5 @@
+import type { GameDatabase, PlayerRow } from '../db/Database.js'
+
 export interface PlayerAccount {
   playerId: string
   playerName: string
@@ -5,76 +7,68 @@ export interface PlayerAccount {
   gamesPlayed: number
   wins: number
   color: string
-  upgrades: string[]  // List of purchased upgrade IDs
+  upgrades: string[]
 }
 
-const INITIAL_STARS = 50
-const GAME_ENTRY_COST = 2
+const GAME_ENTRY_COST = 10
+
+function rowToAccount(row: PlayerRow): PlayerAccount {
+  return {
+    playerId: row.id,
+    playerName: row.name,
+    totalStars: row.total_stars,
+    gamesPlayed: row.games_played,
+    wins: row.wins,
+    color: row.color,
+    upgrades: []
+  }
+}
 
 export class PlayerAccountManager {
-  private accounts = new Map<string, PlayerAccount>()
+  constructor(private readonly db: GameDatabase) {}
 
   getOrCreateAccount(playerId: string, playerName: string, color?: string): PlayerAccount {
-    let account = this.accounts.get(playerId)
-    if (!account) {
-      account = {
-        playerId,
-        playerName,
-        totalStars: INITIAL_STARS,
-        gamesPlayed: 0,
-        wins: 0,
-        color: color ?? '#4488FF',  // Default to first color if not specified
-        upgrades: []
-      }
-      this.accounts.set(playerId, account)
-    } else if (color && account.color !== color) {
-      // Update color if player changed it
-      account.color = color
-    }
-    return account
+    const row = this.db.getOrCreatePlayer(playerId, playerName, color)
+    return rowToAccount(row)
   }
 
   setPlayerColor(playerId: string, color: string): void {
-    const account = this.accounts.get(playerId)
-    if (account) {
-      account.color = color
+    const row = this.db.getPlayer(playerId)
+    if (row) {
+      this.db.getOrCreatePlayer(playerId, row.name, color)
     }
   }
 
   getAccount(playerId: string): PlayerAccount | undefined {
-    return this.accounts.get(playerId)
+    const row = this.db.getPlayer(playerId)
+    return row ? rowToAccount(row) : undefined
   }
 
   canAffordEntry(playerId: string): boolean {
-    const account = this.accounts.get(playerId)
-    return account ? account.totalStars >= GAME_ENTRY_COST : false
+    return this.db.getStars(playerId) >= GAME_ENTRY_COST
   }
 
   chargeEntry(playerId: string): boolean {
-    const account = this.accounts.get(playerId)
-    if (!account || account.totalStars < GAME_ENTRY_COST) {
-      return false
-    }
-    account.totalStars -= GAME_ENTRY_COST
-    account.gamesPlayed++
-    return true
+    return this.db.chargeEntry(playerId, GAME_ENTRY_COST)
   }
 
   addStarsFromPortal(playerId: string, stars: number): void {
-    const account = this.accounts.get(playerId)
-    if (account) {
-      account.totalStars += stars
-    }
+    this.db.updateStars(playerId, stars)
   }
 
   recordWin(playerId: string): void {
-    const account = this.accounts.get(playerId)
-    if (account) {
-      account.wins++
-    }
+    this.db.recordWin(playerId)
+  }
+
+  recordKill(playerId: string): void {
+    this.db.recordKill(playerId)
+  }
+
+  recordDeath(playerId: string): void {
+    this.db.recordDeath(playerId)
   }
 
   getAllAccounts(): PlayerAccount[] {
-    return Array.from(this.accounts.values())
+    return this.db.getLeaderboard(100).map(rowToAccount)
   }
 }

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import { config } from './config.js'
 import { SocketHandler } from './network/SocketHandler.js'
 import { serverStats } from './stats/ServerStats.js'
+import { GameDatabase } from './db/Database.js'
 
 const app = express()
 app.use(cors({ origin: config.corsOrigin }))
@@ -33,7 +34,8 @@ const io = new Server(httpServer, {
   }
 })
 
-new SocketHandler(io)
+const db = new GameDatabase(config.dbPath)
+new SocketHandler(io, db)
 
 httpServer.listen(config.port, () => {
   // eslint-disable-next-line no-console

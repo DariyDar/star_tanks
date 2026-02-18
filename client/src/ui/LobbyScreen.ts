@@ -2,6 +2,7 @@ import { MAP_INFO } from '@shared/maps/index.js'
 import { TANK_COLORS } from '@shared/constants.js'
 import type { MapId } from '@shared/types.js'
 import type { TankColors } from '../rendering/TankRenderer.js'
+import { getTelegramUser, isTelegramApp } from '../telegram.js'
 
 // Color palette for each part (diverse colors)
 const PART_PALETTES = [
@@ -40,7 +41,7 @@ function loadTankColors(): TankColors {
 
 export class LobbyScreen {
   private visible = true
-  private playerName = localStorage.getItem('tankbr_name') ?? ''
+  private playerName = localStorage.getItem('tankbr_name') ?? getTelegramUser()?.first_name ?? ''
   private selectedMap: MapId = (localStorage.getItem('tankbr_map') as MapId) || 'lakes'
   private selectedColor = localStorage.getItem('tankbr_color') ?? TANK_COLORS[0]
   private tankColors: TankColors = loadTankColors()
@@ -148,7 +149,7 @@ export class LobbyScreen {
 
     // Stars display card
     const starsCard = document.createElement('div')
-    const displayStars = this.accountStars !== null ? this.accountStars : 50
+    const displayStars = this.accountStars !== null ? this.accountStars : 1000
     starsCard.style.cssText = `
       background: linear-gradient(135deg, rgba(255,215,0,0.15) 0%, rgba(255,180,0,0.05) 100%);
       border: 1px solid rgba(255,215,0,0.3); border-radius: 14px;
@@ -161,7 +162,7 @@ export class LobbyScreen {
     wrapper.appendChild(starsCard)
 
     const entryCost = document.createElement('div')
-    entryCost.textContent = 'Entry: 2 ★'
+    entryCost.textContent = 'Entry: 10 ★'
     entryCost.style.cssText = 'font-size: 14px; color: rgba(170,170,170,0.7); margin-bottom: 16px;'
     wrapper.appendChild(entryCost)
 

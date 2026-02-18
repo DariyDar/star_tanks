@@ -7,13 +7,16 @@ import type { CompressedMapData } from '@tank-br/shared/types.js'
 import { ObstacleType } from '@tank-br/shared/types.js'
 import { RoomManager } from './RoomManager.js'
 import { serverStats } from '../stats/ServerStats.js'
+import { validateTelegramInitData } from '../auth/TelegramAuth.js'
+import { config } from '../config.js'
+import type { GameDatabase } from '../db/Database.js'
 
 export class SocketHandler {
   private roomManager: RoomManager
   private playerNames = new Map<string, string>()
 
-  constructor(private readonly io: Server) {
-    this.roomManager = new RoomManager(io)
+  constructor(private readonly io: Server, db: GameDatabase) {
+    this.roomManager = new RoomManager(io, db)
     this.io.on('connection', (socket) => this.handleConnection(socket))
   }
 
@@ -55,10 +58,22 @@ export class SocketHandler {
       return
     }
 
+    // Resolve stable player ID for persistence
+    let stableId: string = socket.id
+    if (payload.telegramInitData && config.botToken) {
+      const tgUserId = validateTelegramInitData(payload.telegramInitData, config.botToken)
+      if (tgUserId !== null) {
+        stableId = `tg_${tgUserId}`
+      }
+    } else if (payload.deviceId) {
+      stableId = `dev_${payload.deviceId}`
+    }
+    this.roomManager.setStableId(socket.id, stableId)
+
     this.playerNames.set(socket.id, playerName)
     const result = this.roomManager.joinRoom(socket.id, playerName, mapId, color, ctfTeam, ctfBotsA, ctfBotsB)
     if (!result) {
-      socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 2 stars)' })
+      socket.emit(SERVER_EVENTS.ERROR, { message: 'Not enough stars to join (need 10 stars)' })
       return
     }
 

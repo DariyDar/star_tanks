@@ -95,14 +95,16 @@ export class SocketClient {
     this.socket.connect()
   }
 
-  join(playerName: string, mapId: string, color?: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number): void {
+  join(playerName: string, mapId: string, color?: string, ctfTeam?: 'a' | 'b', ctfBotsA?: number, ctfBotsB?: number, telegramInitData?: string, deviceId?: string): void {
     const payload: ClientJoinPayload = {
       playerName,
       mapId: mapId as ClientJoinPayload['mapId'],
       color,
       ctfTeam,
       ctfBotsA,
-      ctfBotsB
+      ctfBotsB,
+      telegramInitData: telegramInitData || undefined,
+      deviceId: deviceId || undefined
     }
     this.socket.emit(CLIENT_EVENTS.JOIN, payload)
   }

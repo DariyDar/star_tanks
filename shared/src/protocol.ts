@@ -11,6 +11,8 @@ export interface ClientJoinPayload {
   ctfTeam?: 'a' | 'b'    // Chosen team for CTF mode
   ctfBotsA?: number       // Number of bots for team A
   ctfBotsB?: number       // Number of bots for team B
+  telegramInitData?: string  // Telegram Mini App auth data
+  deviceId?: string          // Browser device ID for non-TG persistence
 }
 
 export interface ClientInputPayload extends PlayerInput {}
