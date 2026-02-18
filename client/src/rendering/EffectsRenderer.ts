@@ -267,9 +267,7 @@ export class EffectsRenderer {
 
     for (const exp of this.explosions) {
       const t = (now - exp.startTime) / exp.duration
-      const { sx, sy } = camera.worldToScreen(exp.x, exp.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(exp.x, exp.y, cellPx)
 
       // Multiple expanding shockwave rings
       for (let ring = 0; ring < 3; ring++) {
@@ -343,9 +341,7 @@ export class EffectsRenderer {
 
     for (const impact of this.bulletImpacts) {
       const t = (now - impact.startTime) / impact.duration
-      const { sx, sy } = camera.worldToScreen(impact.x, impact.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(impact.x, impact.y, cellPx)
 
       // Flash
       const flashR = cellPx * 0.4 * (1 + t)
@@ -385,9 +381,7 @@ export class EffectsRenderer {
 
     for (const debris of this.brickDebris) {
       const t = (now - debris.startTime) / debris.duration
-      const { sx, sy } = camera.worldToScreen(debris.x, debris.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(debris.x, debris.y, cellPx)
 
       for (const p of debris.particles) {
         const dist = p.speed * cellPx * 4 * t
@@ -415,9 +409,7 @@ export class EffectsRenderer {
 
     for (const effect of this.starCollects) {
       const t = (now - effect.startTime) / effect.duration
-      const { sx, sy } = camera.worldToScreen(effect.x, effect.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(effect.x, effect.y, cellPx)
 
       // Rising "+1" text
       const textY = cy - t * cellPx * 1.5
@@ -473,9 +465,7 @@ export class EffectsRenderer {
     for (const portal of portals) {
       if (!camera.isVisible(portal.position.x, portal.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(portal.position.x, portal.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(portal.position.x, portal.position.y, cellPx)
 
       const angle = now / 500
       const pulse = 0.8 + Math.sin(now / 300) * 0.2
@@ -525,9 +515,7 @@ export class EffectsRenderer {
 
     for (const flash of this.muzzleFlashes) {
       const t = (now - flash.startTime) / flash.duration
-      const { sx, sy } = camera.worldToScreen(flash.x, flash.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(flash.x, flash.y, cellPx)
 
       ctx.save()
       ctx.translate(cx, cy)
@@ -577,9 +565,7 @@ export class EffectsRenderer {
 
       if (!camera.isVisible(x, y)) continue
 
-      const { sx, sy } = camera.worldToScreen(x, y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(x, y, cellPx)
 
       const size = smoke.size * cellPx * (1 + t * 0.5) // Expand over time
       const alpha = (1 - t) * 0.4
@@ -604,9 +590,7 @@ export class EffectsRenderer {
       if (!camera.isVisible(trail.x, trail.y)) continue
 
       const t = (now - trail.startTime) / trail.duration
-      const { sx, sy } = camera.worldToScreen(trail.x, trail.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(trail.x, trail.y, cellPx)
 
       const alpha = (1 - t) * 0.15
 

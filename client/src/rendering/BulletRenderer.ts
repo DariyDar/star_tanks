@@ -6,9 +6,7 @@ export class BulletRenderer {
     for (const bullet of bullets) {
       if (!camera.isVisible(bullet.position.x, bullet.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(bullet.position.x, bullet.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(bullet.position.x, bullet.position.y, cellPx)
 
       if (bullet.isRocket) {
         this.renderRocket(ctx, cx, cy, bullet, cellPx)

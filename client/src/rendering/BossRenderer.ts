@@ -11,7 +11,7 @@ export class BossRenderer {
   ): void {
     if (!boss || !boss.isAlive) return
 
-    const { sx, sy } = camera.worldToScreen(boss.position.x, boss.position.y, cellPx)
+    const { sx: cx, sy: cy } = camera.worldToScreen(boss.position.x, boss.position.y, cellPx)
 
     // Boss is 3x larger than normal tank
     const bossRadiusPx = 1.35 * cellPx
@@ -19,8 +19,8 @@ export class BossRenderer {
     // HP bar (show above boss)
     const barWidth = bossRadiusPx * 2
     const barHeight = 8
-    const barX = sx + cellPx / 2 - barWidth / 2
-    const barY = sy - barHeight - 10
+    const barX = cx - barWidth / 2
+    const barY = cy - bossRadiusPx - barHeight - 10
 
     // Background (red)
     ctx.fillStyle = '#600'
@@ -45,7 +45,7 @@ export class BossRenderer {
     // Boss body (dark red circle)
     ctx.fillStyle = '#8B0000'
     ctx.beginPath()
-    ctx.arc(sx + cellPx / 2, sy + cellPx / 2, bossRadiusPx, 0, Math.PI * 2)
+    ctx.arc(cx, cy, bossRadiusPx, 0, Math.PI * 2)
     ctx.fill()
 
     // Boss outline (gold)
@@ -55,7 +55,7 @@ export class BossRenderer {
 
     // Boss symbol (skull or star)
     ctx.save()
-    ctx.translate(sx + cellPx / 2, sy + cellPx / 2)
+    ctx.translate(cx, cy)
     ctx.fillStyle = '#FFD700'
     ctx.font = `bold ${bossRadiusPx * 1.2}px Arial`
     ctx.textAlign = 'center'
@@ -66,7 +66,7 @@ export class BossRenderer {
     // Rotating laser beam (if active)
     if (boss.currentAttack === BossAttackType.RotatingLaser && boss.laserAngle !== undefined) {
       ctx.save()
-      ctx.translate(sx + cellPx / 2, sy + cellPx / 2)
+      ctx.translate(cx, cy)
       ctx.rotate(boss.laserAngle)
 
       // Laser beam
@@ -98,7 +98,7 @@ export class BossRenderer {
     const phaseCount = 10
     const phaseRadius = 4
     const phaseSpacing = 10
-    const phaseStartX = sx + cellPx / 2 - ((phaseCount - 1) * phaseSpacing) / 2
+    const phaseStartX = cx - ((phaseCount - 1) * phaseSpacing) / 2
     const phaseY = barY - 15
 
     for (let i = 0; i < phaseCount; i++) {

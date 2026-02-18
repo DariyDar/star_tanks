@@ -28,9 +28,7 @@ export class TankRenderer {
       if (!tank.isAlive) continue
       if (!camera.isVisible(tank.position.x, tank.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(tank.position.x, tank.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(tank.position.x, tank.position.y, cellPx)
 
       // Smooth hull rotation
       const hullAngle = this.smoothAngle(this.hullAngles, tank.id, tank.hullAngle, HULL_ROTATION_SPEED, dt)
@@ -163,7 +161,7 @@ export class TankRenderer {
       ctx.restore()
 
       // HP bar
-      this.renderHPBar(ctx, sx, sy, cellPx, tank)
+      this.renderHPBar(ctx, cx, cy, s, tank)
 
       // Name
       if (tank.id !== myId) {
@@ -171,7 +169,7 @@ export class TankRenderer {
         ctx.font = `${Math.max(8, cellPx / 3)}px Arial`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'bottom'
-        ctx.fillText(tank.name, cx, sy - cellPx * 0.15)
+        ctx.fillText(tank.name, cx, cy - s * 1.2)
       }
 
       // Star count badge
@@ -180,7 +178,7 @@ export class TankRenderer {
         ctx.font = `bold ${Math.max(7, cellPx / 4)}px Arial`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
-        ctx.fillText(`${tank.stars}`, cx, sy + cellPx + 2)
+        ctx.fillText(`${tank.stars}`, cx, cy + s * 1.1 + 2)
       }
 
       // Flag carrier indicator
@@ -222,13 +220,13 @@ export class TankRenderer {
   }
 
   private renderHPBar(
-    ctx: CanvasRenderingContext2D, sx: number, sy: number,
-    cellPx: number, tank: Tank
+    ctx: CanvasRenderingContext2D, cx: number, cy: number,
+    s: number, tank: Tank
   ): void {
-    const barW = cellPx * 0.8
+    const barW = s * 2
     const barH = 3
-    const barX = sx + (cellPx - barW) / 2
-    const barY = sy - 6
+    const barX = cx - barW / 2
+    const barY = cy - s * 1.1 - 6
 
     ctx.fillStyle = '#333'
     ctx.fillRect(barX, barY, barW, barH)

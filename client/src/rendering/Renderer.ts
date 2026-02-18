@@ -239,14 +239,14 @@ export class Renderer {
     const myTank = client.getMyTank()
     const myPos = client.getMyDisplayPosition()
     if (myTank && myPos) {
-      const { sx, sy } = camera.worldToScreen(myPos.x, myPos.y, cellPx)
-      const cx = sx + cellPx / 2
+      const { sx: myCx, sy: myCy } = camera.worldToScreen(myPos.x, myPos.y, cellPx)
+      const myS = cellPx * (myTank.tankRadius ?? 0.45)
 
       ctx.fillStyle = '#FFF'
       ctx.beginPath()
-      ctx.moveTo(cx, sy - cellPx * 0.6)
-      ctx.lineTo(cx - 4, sy - cellPx * 0.4)
-      ctx.lineTo(cx + 4, sy - cellPx * 0.4)
+      ctx.moveTo(myCx, myCy - myS * 1.5)
+      ctx.lineTo(myCx - 4, myCy - myS * 1.3)
+      ctx.lineTo(myCx + 4, myCy - myS * 1.3)
       ctx.fill()
 
       // Arrow pointing to nearest portal
@@ -301,9 +301,7 @@ export class Renderer {
       if (!star.active) continue
       if (!camera.isVisible(star.position.x, star.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(star.position.x, star.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(star.position.x, star.position.y, cellPx)
       const r = cellPx * 0.32
 
       // Shadow under star
@@ -395,9 +393,7 @@ export class Renderer {
     for (const pu of state.powerUps) {
       if (!camera.isVisible(pu.position.x, pu.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(pu.position.x, pu.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(pu.position.x, pu.position.y, cellPx)
 
       const pulse = 0.8 + Math.sin(Date.now() / 200) * 0.2
       const r = cellPx * 0.4 * pulse
@@ -571,9 +567,7 @@ export class Renderer {
       if (tank.activePowerUp !== PowerUpType.OpticalSight) continue
       if (!camera.isVisible(tank.position.x, tank.position.y)) continue
 
-      const { sx, sy } = camera.worldToScreen(tank.position.x, tank.position.y, cellPx)
-      const cx = sx + cellPx / 2
-      const cy = sy + cellPx / 2
+      const { sx: cx, sy: cy } = camera.worldToScreen(tank.position.x, tank.position.y, cellPx)
 
       // Laser line from barrel tip to bullet range
       const barrelLength = tank.tankRadius * 1.2 * cellPx
